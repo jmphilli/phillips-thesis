@@ -21,23 +21,28 @@
 (define _au-node _sint32)
 (define _component-result _sint32)
 ;jmp
-(define _item_count _uint32)
-(define _midi_obj_ref _uint32)
-(define _midi_endpoint_ref _midi_obj_ref)
-(define _midi_port_ref _midi_obj_ref)
-(define _midi_client_ref _midi_obj_ref)
-(define _cfstring_encoding _uint32)
-(define _const_char_ptr _string/ucs-4) ; don't you dare mutate this string you c programmer you...
+(define _item-count _uint32)
+(define _midi-obj-ref _uint32)
+(define _midi-time-stamp _uint64)
+(define _midi-endpoint-ref _midi-obj-ref)
+(define _midi-port-ref _midi-obj-ref)
+(define _midi-client-ref _midi-obj-ref)
+(define _midi-device-ref _midi-obj-ref)
+(define _midi-entity-ref _midi-obj-ref)
+(define _cfstring-encoding _uint32)
+(define _const-char-ptr _string) ; don't you dare mutate this string you c programmer you...
 
-;fix this
-(define _midi_packet_list _uint32)
+(define-cpointer-type _midi-port-ref-ptr)
+(define-cpointer-type _midi-client-ref-ptr)
+(define-cpointer-type _void-ptr)
+(define-cpointer-type _cfallocator-ref) ; since i only need it in one place and it works with a null, don't worry about it...
+(define-cpointer-type _midi-notify-proc) ; since i only need it in one place and it works with a null, don't worry about it...
+(define-cpointer-type _cfstring-ref)
+(define-cpointer-type _midi-packet-ptr)
+(define-cpointer-type _byte-array-ptr)
 
-(define-cpointer-type _midi_port_ref_ptr)
-(define-cpointer-type _midi_client_ref_ptr)
-(define-cpointer-type _void_ptr)
-(define-cpointer-type _cfallocator_ref) ; since i only need it in one place and it works with a null, don't worry about it...
-(define-cpointer-type _midi_notify_proc) ; since i only need it in one place and it works with a null, don't worry about it...
-(define-cpointer-type _cfstring_ref)
+(define-cstruct _midi-packet ([time-stamp _midi-time-stamp] [length _uint16] [data _byte-array-ptr]))
+(define-cstruct _midi-packet-list ([num-packets _uint32] [packets _midi-packet-ptr]))
 
 ;jbc
 (define-cpointer-type _au-graph)
@@ -130,6 +135,15 @@
 ;jmp
 (define CoreMIDI-lib (ffi-lib (framework->dylib "CoreMIDI")))
 (define CoreFoundation-lib (ffi-lib (framework->dylib "CoreFoundation"))) ; for CFStrings
+
+#;(define j-lib (ffi-lib (build-path "/Users/justinphillips/Documents/School/Thesis/Music/midi-test/cScheme/build/Debug/cScheme")))
+
+#;(define connect-me-to-c
+  (get-ffi-obj "connectMeToC" j-lib
+               (_fun (client : _midi-client-ref) 
+                     (portName : _cfstring-ref)
+                     (outPort : _pointer);(_ptr i _midi-port-ref-ptr)) ; has tag 'midi-port-ref-ptr
+                     -> _os-status)))
 
 
 ;; error checking for FFI calls :
@@ -231,63 +245,82 @@
                      -> _component-result)))
 
 ;jmp
-(define midi-get-number-of-destinations
-  (get-ffi-obj "MIDIGetNumberOfDestinations" CoreMIDI-lib
-               (_fun -> _item_count)))
+(define midi-get-number-of-devices
+  (get-ffi-obj "MIDIGetNumberOfDevices" CoreMIDI-lib
+               (_fun -> _item-count)))
 
-(define midi-get-number-of-sources
-  (get-ffi-obj "MIDIGetNumberOfSources" CoreMIDI-lib
-               (_fun -> _item_count)))
+(define midi-get-device 
+  (get-ffi-obj "MIDIGetDevice" CoreMIDI-lib
+               (_fun (dev-idx : _item-count)
+                     -> _midi-device-ref)))
 
-(define midi-get-destination
-  (get-ffi-obj "MIDIGetDestination" CoreMIDI-lib
-               (_fun (dest-index : _item_count) ; The index (0...MIDIGetNumberOfDestinations()-1) of the destination to return
-                     -> _midi_endpoint_ref)))
+(define midi-device-get-number-of-entities
+  (get-ffi-obj "MIDIDeviceGetNumberOfEntities" CoreMIDI-lib
+               (_fun (device : _midi-device-ref)
+                     -> _item-count)))
 
-(define midi-get-source
-  (get-ffi-obj "MIDIGetSource" CoreMIDI-lib
-               (_fun (dest-index : _item_count) ; The index (0...MIDIGetNumberOfSources()-1) of the destination to return
-                     -> _midi_endpoint_ref)))
+(define midi-device-get-entity
+  (get-ffi-obj "MIDIDeviceGetEntity" CoreMIDI-lib
+               (_fun (dev : _midi-device-ref)
+                     (entity-idx : _item-count)
+                     -> _midi-entity-ref)))
 
-(define _midi_read_proc
-  (_fun (pktlist-ptr : _midi_packet_list)
-        (read-proc-ref-con-ptr : _void_ptr)
-        (src-conn-ref-con : _void_ptr)
-        -> _void_ptr))
+(define midi-entity-get-number-of-sources
+  (get-ffi-obj "MIDIEntityGetNumberOfSources" CoreMIDI-lib
+               (_fun (entity : _midi-entity-ref)
+                     -> _item-count)))
 
-(define (midi-read a b c)
-  (printf "working\n"))
+(define midi-entity-get-source
+  (get-ffi-obj "MIDIEntityGetSource" CoreMIDI-lib
+               (_fun (entity : _midi-entity-ref)
+                     (src-idx : _item-count)
+                     -> _midi-endpoint-ref)))
+
+(define _midi-read-proc
+  (_fun (pktlist-ptr : _midi-packet-list)
+        (read-proc-ref-con-ptr : _pointer);_void-ptr)
+        (src-conn-ref-con : _pointer);_void-ptr)
+        -> _void-ptr))
+
+;(define _midi-read-proc-ptr)
 
 (define midi-input-port-create
   (get-ffi-obj "MIDIInputPortCreate" CoreMIDI-lib
-               (_fun (client : _midi_client_ref) 
-                     (portName : _cfstring_ref) 
-                     (readProc : _midi_read_proc) 
-                     (refCon : (_or-null _void_ptr))
-                     (outPort : _midi_port_ref_ptr)
+               (_fun (client : _midi-client-ref) 
+                     (portName : _cfstring-ref) 
+                     (readProc : _midi-read-proc)
+                     ;(readProc : _midi-read-proc-ptr) 
+                     (refCon : (_or-null _pointer));(_or-null _void-ptr))
+                     (outPort : _pointer);(_ptr i _midi-port-ref-ptr)) ; has tag 'midi-port-ref-ptr
                      -> _os-status)))
 
 (define midi-port-connect-source
   (get-ffi-obj "MIDIPortConnectSource" CoreMIDI-lib
-               (_fun (port-ref : _midi_port_ref)
-                     (endpoint-ref : _midi_endpoint_ref)
-                     (conn-ref-con : (_or-null _void_ptr))
+               (_fun (port-ref : _midi-port-ref)
+                     (endpoint-ref : _midi-endpoint-ref)
+                     (conn-ref-con : _pointer);(_or-null _void-ptr))
                      -> _os-status )))
+
+(define midi-port-disconnect-source
+  (get-ffi-obj "MIDIPortDisconnectSource" CoreMIDI-lib
+               (_fun (port : _midi-port-ref)
+                     (src : _midi-endpoint-ref)
+                     -> _os-status)))
 
 (define midi-client-create
   (get-ffi-obj "MIDIClientCreate" CoreMIDI-lib
-               (_fun (name : _cfstring_ref) 
-                     (notifyProc : (_or-null _midi_notify_proc))  ; can be null
-                     (notifyRefCon : (_or-null _void_ptr))
-                     (outClientptr : (_or-null _midi_client_ref_ptr))
+               (_fun (name : _cfstring-ref) 
+                     (notifyProc : (_or-null _midi-notify-proc))  ; can be null
+                     (notifyRefCon : (_or-null _pointer));(_or-null _void-ptr))
+                     (outClientptr : (_or-null _pointer));(_or-null _midi-client-ref-ptr))
                      -> _os-status)))
 
-(define cfstring-create-with-c-string
+(define cf-string-create-with-c-string
   (get-ffi-obj "CFStringCreateWithCString" CoreFoundation-lib
-               (_fun (alloc : (_or-null _cfallocator_ref)) ; can be null
-                     (cstrptr : _const_char_ptr) 
-                     (encoding : _cfstring_encoding)
-                     -> _cfstring_ref)))
+               (_fun (alloc : (_or-null _cfallocator-ref)) ; can be null
+                     (cstrptr : _const-char-ptr) 
+                     (encoding : _cfstring-encoding)
+                     -> _cfstring-ref)))
 
 
 
@@ -419,48 +452,83 @@ int main (int argc, char * argv[]) {
 |#
 
 
+#|
+jmp
+pg 79&80 of coreaudio.pdf
+|#
 
-;jmp
-(define new-void-ptr (malloc (max (ctype-sizeof _uint32) (ctype-sizeof _pointer))))
+(define k-cf-string-encoding-mac-roman 0)
+(define void-ptr _pointer)
 
-;pg 79&80 of coreaudio.pdf
-(define (setup-one-instrument in-port)
-  (let* ([src (midi-get-source 0)]
-         [src-conn-ref-con (point-to _uint32 src _uint32)])
-    (midi-port-connect-source (ptr-ref in-port _midi_port_ref)
-                              src
-                              src-conn-ref-con)))
-(define (make-client-name)
-  (cfstring-create-with-c-string #f
-                                 "my-client"
-                                 0))
-
-(define (make-input-port)
-  (let* ([client-name (make-client-name)]
-         [client (make-client client-name)]
-         [out-port (point-to _uint32 0 _uint32)]
-         [status (midi-input-port-create (ptr-ref client _midi_client_ref)
-                                         client-name
-                                         (function-ptr midi-read _midi_read_proc)
-                                         #f;(point-to _uint32 1 _uint32) ; i'm assuming thats what refCon is short for... this value can be non zero apparently..
-                                         (ptr-ref out-port _midi_port_ref))])
-    out-port))
-
-
-(define (make-client client-name)
-  (let ([client-ref (point-to (_or-null _midi_client_ref_ptr) #f (_or-null _midi_client_ref_ptr))])
-    (begin (midi-client-create client-name
-                               #f
-                               #f
-                               client-ref))
-    client-ref))
-
-
-(define (point-to type val ptr-type)
-  (let ([cptr (malloc type)])
+(define (point-to c-type val)
+  (let ([ptr (malloc c-type)])
     (begin
-      (ptr-set! cptr ptr-type val)
-      cptr)))
+      (ptr-set! ptr c-type val)
+      ptr)))
 
-(define (connect-to-instrument)
-  (setup-one-instrument (make-input-port)))
+(define (make-list-of-length n)
+  (reverse (make-list-of-length-innards n)))
+
+(define (make-list-of-length-innards n)
+  (if (equal? n 0)
+      '()
+      (cons (- n 1) (make-list-of-length-innards (- n 1)))))
+
+(define (my-midi-read-proc pkt-lst read-proc-ref-con src-conn-ref-con)
+  (printf "ok\n"))
+
+(define (connect-me)
+  (let ([num-devices (midi-get-number-of-devices)])
+    (for ([i-dev (make-list-of-length num-devices)])
+      (let* ([device-ref (midi-get-device i-dev)]
+             [num-entities (midi-device-get-number-of-entities device-ref)])
+        (for ([i-ent (make-list-of-length num-entities)])
+          (let* ([entity (midi-device-get-entity device-ref i-ent)]
+                 [in-port (malloc _midi-port-ref)]
+                 [client (malloc _midi-client-ref)]
+                 [port-name (cf-string-create-with-c-string #f "my port" k-cf-string-encoding-mac-roman)]
+                 [os-stat-1 (midi-client-create port-name #f #f client)]
+                 ;[os-stat-2 (connect-me-to-c (ptr-ref client _midi-client-ref) port-name  in-port)]
+                 [os-stat-2 (midi-input-port-create (ptr-ref client _midi-client-ref) port-name my-midi-read-proc client in-port)];TODO maybe need 'function pointer' (function-ptr my-midi-read-proc _midi-read-proc)
+                 [num-sources (midi-entity-get-number-of-sources entity)])
+            (for ([i-src (make-list-of-length num-sources)])
+                  (let* ([src (midi-entity-get-source entity i-src)]
+                         [src-conn-ref-con (point-to _uint32 src)]; TODO want/need this to be _void not _uint32
+                         [os-stat-3 (midi-port-connect-source (ptr-ref in-port _midi-port-ref) src src-conn-ref-con)])
+                    (begin 
+                      (printf "statuses ~a ~a ~a\n" os-stat-1 os-stat-2 os-stat-3)
+                      (printf "dev ~a ent ~a src ~a" i-dev i-ent i-src)
+                      (sleep 3)
+                      (printf "done sleeping\n")
+                      (printf "final status ~a" (midi-port-disconnect-source (ptr-ref in-port _midi-port-ref) src)))))))))))
+
+;null is #f in scheme
+#|
+translate this code into scheme
+int main(int argc, char* argv){
+	ItemCount ndev = MIDIGetNumberOfDevices();
+	for (int idev = 0; idev < ndev; ++idev) {
+		MIDIDeviceRef device = MIDIGetDevice(idev); 
+		ItemCount nent = MIDIDeviceGetNumberOfEntities(device); 
+		for (int ient = 0; ient < nent; ++ient) {
+			MIDIEntityRef entity = MIDIDeviceGetEntity(device, ient);
+			MIDIPortRef* inPort = malloc(sizeof(MIDIPortRef));
+			MIDIClientRef* client = malloc(sizeof(MIDIClientRef));
+
+			CFStringRef portName = CFStringCreateWithCString(NULL, "my port", kCFStringEncodingMacRoman);
+			MIDIClientCreate(portName, NULL, NULL, client);
+
+			MIDIInputPortCreate(*client, portName, (MIDIReadProc)readerFunc, client, inPort);
+			ItemCount nSrcs = MIDIEntityGetNumberOfSources(entity);
+			for (int iSrc = 0; iSrc < nSrcs; ++iSrc) {
+				MIDIEndpointRef src = MIDIEntityGetSource(entity, iSrc);
+				void *srcConnRefCon = src;
+				MIDIPortConnectSource(*inPort, src, srcConnRefCon);
+				sleep(3);
+				MIDIPortDisconnectSource(*inPort, src);
+			}
+		}
+	}
+	
+	return 1;
+}|#
