@@ -311,6 +311,10 @@
                (_fun (entity : _midi-entity-ref)
                      -> _item-count)))
 
+(define midi-get-number-of-sources
+  (get-ffi-obj "MIDIGetNumberOfSources" CoreMIDI-lib
+               (_fun -> _item-count)))
+
 (define midi-entity-get-source
   (get-ffi-obj "MIDIEntityGetSource" CoreMIDI-lib
                (_fun (entity : _midi-entity-ref)
@@ -561,27 +565,22 @@ pg 79&80 of coreaudio.pdf
 
 
 (define (connect-me)
-  (let ([num-devices (midi-get-number-of-devices)])
-    (for ([i-dev (make-list-of-length num-devices)])
-      (let* ([device-ref (midi-get-device i-dev)]
-             [num-entities (midi-device-get-number-of-entities device-ref)])
-        (for ([i-ent (make-list-of-length num-entities)])
-          (let* ([entity (midi-device-get-entity device-ref i-ent)]
-                 [in-port (malloc _midi-port-ref)]
-                 [client (malloc _midi-client-ref)]
-                 [port-name (cf-string-create-with-c-string #f "my port" k-cf-string-encoding-mac-roman)]
-                 [os-stat-1 (midi-client-create port-name #f #f client)]
+    (let* ([in-port (malloc _midi-port-ref)]
+           [client (malloc _midi-client-ref)]
+           [port-name (cf-string-create-with-c-string #f "my port" k-cf-string-encoding-mac-roman)]
+           [os-stat-1 (midi-client-create port-name #f #f client)]
                  ;[os-stat-2 (connect-me-to-c (ptr-ref client _midi-client-ref) port-name  in-port)]
-                 [os-stat-2 (midi-input-port-create (ptr-ref client _midi-client-ref) port-name my-midi-read-proc client in-port)];TODO maybe need 'function pointer' (function-ptr my-midi-read-proc _midi-read-proc)
-                 [num-sources (midi-entity-get-number-of-sources entity)])
-            (for ([i-src (make-list-of-length num-sources)])
-                  (let* ([src (midi-get-source i-src)]
-                         [src-conn-ref-con (point-to _uint32 src)]; TODO want/need this to be _void not _uint32
-                         [os-stat-3 (midi-port-connect-source (ptr-ref in-port _midi-port-ref) src src-conn-ref-con)])
-                    (begin 
-                      (printf "dev ~a ent ~a src ~a\n" i-dev i-ent i-src)
-                      (sleep 2)
-                      (printf "final status ~a\n" (midi-port-disconnect-source (ptr-ref in-port _midi-port-ref) src)))))))))))
+           [os-stat-2 (midi-input-port-create (ptr-ref client _midi-client-ref) port-name my-midi-read-proc client in-port)];TODO maybe need 'function pointer' (function-ptr my-midi-read-proc _midi-read-proc)
+           [num-sources (midi-get-number-of-sources)])
+      (for ([i-src (make-list-of-length num-sources)])
+        (let* ([src (midi-get-source i-src)]
+               [src-conn-ref-con (point-to _uint32 src)]; TODO want/need this to be _void not _uint32
+               [os-stat-3 (midi-port-connect-source (ptr-ref in-port _midi-port-ref) src src-conn-ref-con)])
+          (begin 
+            (printf "src ~a\n" i-src)
+            (sleep 2)
+            (printf "final status ~a\n" (midi-port-disconnect-source (ptr-ref in-port _midi-port-ref) src)))))))
+
 ;null is #f in scheme
 #|
 translate this code into scheme
