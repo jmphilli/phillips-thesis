@@ -7,7 +7,29 @@
 (provide new-midi-handle
          dispose-midi-handle
          with-midi-handle
-         midi-command!)
+         midi-command!
+         ;jmp
+         ;constants
+         k-cf-string-encoding-mac-roman
+         _midi-endpoint-ref
+         _midi-client-ref
+         _midi-port-ref
+         ;foreign functions
+         cf-string-create-with-c-string
+         midi-packet-list-init
+         midi-packet-list-add
+         midi-client-create
+         midi-source-create
+         midi-input-port-create
+         midi-get-source
+         midi-port-connect-source
+         midi-port-disconnect-source
+         midi-received
+         midi-endpoint-dispose
+         ;higher order foreign functions
+         point-to
+         ;native functions
+         )
 
 ;; find the dylib corresponding to a framework name.
 ;; I'm just guessing at how this should work...
@@ -23,6 +45,7 @@
 ;jmp
 (define _item-count _uint32)
 (define _midi-obj-ref _uint32)
+(define _byte-count _uint32)
 (define _midi-time-stamp _uint64)
 (define _midi-endpoint-ref _midi-obj-ref)
 (define _midi-port-ref _midi-obj-ref)
@@ -245,6 +268,24 @@
                      -> _component-result)))
 
 ;jmp
+(define midi-source-create
+  (get-ffi-obj "MIDISourceCreate" CoreMIDI-lib
+               (_fun (client : _midi-client-ref)
+                     (name : _cfstring-ref)
+                     (out-src : _pointer)
+                     -> _os-status)))
+
+(define midi-endpoint-dispose
+  (get-ffi-obj "MIDIEndpointDispose" CoreMIDI-lib
+               (_fun (endpoint : _midi-endpoint-ref)
+                     -> _os-status)))
+
+(define midi-received
+  (get-ffi-obj "MIDIReceived" CoreMIDI-lib
+               (_fun (src : _midi-endpoint-ref)
+                     (pkt-list-ptr : _pointer)
+                     -> _os-status)))
+
 (define midi-get-number-of-devices
   (get-ffi-obj "MIDIGetNumberOfDevices" CoreMIDI-lib
                (_fun -> _item-count)))
@@ -276,13 +317,31 @@
                      (src-idx : _item-count)
                      -> _midi-endpoint-ref)))
 
+(define midi-get-source
+  (get-ffi-obj "MIDIGetSource" CoreMIDI-lib
+               (_fun (src-idx : _item-count)
+                     -> _midi-endpoint-ref)))
+
 (define _midi-read-proc
   (_fun (pktlist-ptr : _midi-packet-list)
         (read-proc-ref-con-ptr : _pointer);_void-ptr)
         (src-conn-ref-con : _pointer);_void-ptr)
         -> _void-ptr))
 
-;(define _midi-read-proc-ptr)
+(define midi-packet-list-init
+  (get-ffi-obj "MIDIPacketListInit" CoreMIDI-lib
+               (_fun (pktlist-ptr : _pointer)
+                     -> _midi-packet)))
+
+(define midi-packet-list-add
+  (get-ffi-obj "MIDIPacketListAdd" CoreMIDI-lib
+               (_fun (pktlist-ptr : _pointer)
+                     (list-size : _byte-count)
+                     (cur-packet-ptr : _pointer)
+                     (time : _midi-time-stamp)
+                     (n-data : _byte-count)
+                     (data-ptr : _pointer)
+                     -> _pointer)))
 
 (define midi-input-port-create
   (get-ffi-obj "MIDIInputPortCreate" CoreMIDI-lib
@@ -477,7 +536,7 @@ pg 79&80 of coreaudio.pdf
 (define (my-midi-read-proc pkt-lst read-proc-ref-con src-conn-ref-con)
   (printf "ok\n"))
 
-(define (connect-me)
+#;(define (connect-me)
   (let ([num-devices (midi-get-number-of-devices)])
     (for ([i-dev (make-list-of-length num-devices)])
       (let* ([device-ref (midi-get-device i-dev)]
@@ -496,12 +555,33 @@ pg 79&80 of coreaudio.pdf
                          [src-conn-ref-con (point-to _uint32 src)]; TODO want/need this to be _void not _uint32
                          [os-stat-3 (midi-port-connect-source (ptr-ref in-port _midi-port-ref) src src-conn-ref-con)])
                     (begin 
-                      (printf "statuses ~a ~a ~a\n" os-stat-1 os-stat-2 os-stat-3)
-                      (printf "dev ~a ent ~a src ~a" i-dev i-ent i-src)
-                      (sleep 3)
-                      (printf "done sleeping\n")
+                      (printf "dev ~a ent ~a src ~a\n" i-dev i-ent i-src)
+                      (sleep 2)
                       (printf "final status ~a" (midi-port-disconnect-source (ptr-ref in-port _midi-port-ref) src)))))))))))
 
+
+(define (connect-me)
+  (let ([num-devices (midi-get-number-of-devices)])
+    (for ([i-dev (make-list-of-length num-devices)])
+      (let* ([device-ref (midi-get-device i-dev)]
+             [num-entities (midi-device-get-number-of-entities device-ref)])
+        (for ([i-ent (make-list-of-length num-entities)])
+          (let* ([entity (midi-device-get-entity device-ref i-ent)]
+                 [in-port (malloc _midi-port-ref)]
+                 [client (malloc _midi-client-ref)]
+                 [port-name (cf-string-create-with-c-string #f "my port" k-cf-string-encoding-mac-roman)]
+                 [os-stat-1 (midi-client-create port-name #f #f client)]
+                 ;[os-stat-2 (connect-me-to-c (ptr-ref client _midi-client-ref) port-name  in-port)]
+                 [os-stat-2 (midi-input-port-create (ptr-ref client _midi-client-ref) port-name my-midi-read-proc client in-port)];TODO maybe need 'function pointer' (function-ptr my-midi-read-proc _midi-read-proc)
+                 [num-sources (midi-entity-get-number-of-sources entity)])
+            (for ([i-src (make-list-of-length num-sources)])
+                  (let* ([src (midi-get-source i-src)]
+                         [src-conn-ref-con (point-to _uint32 src)]; TODO want/need this to be _void not _uint32
+                         [os-stat-3 (midi-port-connect-source (ptr-ref in-port _midi-port-ref) src src-conn-ref-con)])
+                    (begin 
+                      (printf "dev ~a ent ~a src ~a\n" i-dev i-ent i-src)
+                      (sleep 2)
+                      (printf "final status ~a\n" (midi-port-disconnect-source (ptr-ref in-port _midi-port-ref) src)))))))))))
 ;null is #f in scheme
 #|
 translate this code into scheme
