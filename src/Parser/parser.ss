@@ -1,15 +1,23 @@
 #lang scheme
 
 (require (lib "midi/midi-layer.ss")
-         "./variable-length-handler.ss")
+         "./variable-length-handler.ss"
+         "../module/connect.ss")
+
+(define-struct parsed-midi (tempo track-lst))
 
 ;; open a file and play it back
 ;clean - bass1*2
-(define (parse midi-stream)
-  (let ([in (open-input-file midi-stream #:mode 'binary)])
-    (read-midi-stream in)))
+(define (parse-file midi-file)
+  (let ([in (open-input-file midi-file #:mode 'binary)])
+    (read-midi-file in)))
 
-(define-struct parsed-midi (tempo track-lst))
+(define (parse-stream midi-bstr)
+  (make-parsed-midi 120 (list (read-track-bstr midi-bstr #"")))) 
+;; the extra list is for posterity. j/k its cause its a track coming from an instrument. parse-file lists tracks so this has to as well for the analysing step to work
+
+(define (connect-to-midi)
+  (connect))
 
 ;this just makes every element in the list a time-event pair. it could be done with a simple in-line map, but this way it is clear what i am doing...
 (define (make-time-event-pairs lst)
@@ -34,7 +42,7 @@
 
 
 ; this reads past the header, and reads every midi track/command, returning the list of commands for further processing
-(define (read-midi-stream in-stream)
+(define (read-midi-file in-stream)
   (let ([header (read-header in-stream)])
     (match (midi-header-format header)
       [0 'single-track-format]
@@ -63,7 +71,7 @@
   (if (equal? (bytes->string/utf-8 (read-bytes in-stream 4)) "MTrk")
       (let ([track-bstr (read-bytes in-stream (integer-bytes->integer (read-bytes in-stream 4) #t #t))])
        (read-track-bstr track-bstr #""))
-      (printf "read-track failed\n")))
+      (error 'read-track-failed)))
 
 
 (define (read-track-bstr track-bstr previous-midi-command)
@@ -247,5 +255,8 @@ Here are some examples:
     ;; let the notes stop ringing:
     (sleep 0.5)))
 
-(provide parse
+(provide parse-file
+         parse-stream
+         connect-to-midi
+         read-midi
          (struct-out parsed-midi))
