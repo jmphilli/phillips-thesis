@@ -1,0 +1,6 @@
+There is a compiled SchemeMidi.rkt file in the HardwareLink directory.
+Use the linux directory for Linux. 
+
+On linux you need jack installed.
+There is a README in that directory telling you how to set it up, but its
+pretty straightforward.
