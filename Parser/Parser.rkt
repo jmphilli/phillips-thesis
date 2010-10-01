@@ -344,7 +344,7 @@
 |#
 
 ;more test stuff
-(define c-on-chord '(1 3 (144 60 23)))
+#|(define c-on-chord '(1 3 (144 60 23)))
 (define e-on-chord '(0 3 (144 64 23)))
 (define g-on-chord '(0 3 (144 67 23)))
 (define c-off-chord '(5 3 (144 60 0)))
@@ -419,5 +419,5 @@
     (parse g-off-arp 1)
     (parse note-off-long-sus 1))
   )
-
+|#
 (provide parse)

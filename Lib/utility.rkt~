@@ -1,5 +1,10 @@
-#lang Racket
-(require (prefix-in skore: (lib "midi/user.ss")))
+#lang scheme
+(require (prefix-in skore: (lib "midi/user.ss") #;(only-in (lib "midi/user.ss")
+                                                           rest
+                                                           pitch-num->pitch
+                                                           pitch-class->offset
+                                                           (struct midi-note-on)
+                                                           midi-note-off)))
 
 (define UNISON 0)
 (define MINOR_SECOND 1)
@@ -29,15 +34,10 @@
 (define MINOR_LST (list UNISON MAJOR_SECOND MINOR_THIRD PERFECT_FOURTH PERFECT_FIFTH MINOR_SIXTH MAJOR_SIXTH MINOR_SEVENTH MAJOR_SEVENTH))
 
 (define-struct piece (key-signature time-signature changes))
-(define EMPTY_PIECE (make-piece ALL_KEYS '4:4 '()))
+(define EMPTY_PIECE (make-piece ALL_KEYS 4/4 '()))
 
 (define (get-musical-duration music)
-  
-    (if (not (list? music))
-        (begin
-          (printf "stopping ~n~a~n" music)
-          (exit))
-     (cond [(empty? music) 0]
+  (cond [(empty? music) 0]
         [(equal? ':+: (first music)) (get-musical-duration_sequenece (rest music))]
         [(equal? ':=: (first music)) (get-musical-duration_parallel (rest music))]
         [(equal? 'note (first music)) (note-in-lst-duration music)]
@@ -45,7 +45,7 @@
         [(and (list? music)
               (or (note-in-lst? (first music))
                   (rest-in-lst? (first music)))) (get-musical-duration (first music))]
-        [else 0])))
+        [else 0]))
 
 (define (get-musical-duration_sequenece music)
   (cond [(empty? music) 0]
@@ -210,20 +210,26 @@
 (define (major-key-symbol? sym)
   (char-upper-case? (string-ref (symbol->string sym) 0)))
 
-(define (get-music-for-duration music duration)
-  (parse-music-duration music duration))
-(define (get-music-after-duration music duration)
-  (parse-past-music-duration music duration))
 ;this gets called somewhere and breaks
 (define (parse-music-duration music duration)
   (match (first music)
-    [':+: (cons (first music) (parse-music-duration-sequence (rest music) duration))]
-    [':=: (cons (first music) (parse-music-duration-parallel (rest music) duration))]
+    [':+: (cons (first music) (parse-music-duration-sequence (rest music) duration))
+          #;(match (second music)
+            [(list 'note (list a b) c) (if (< duration (get-musical-duration (second music)))
+                       '()
+                       (cons ':+: (cons (second music) (parse-music-duration (cons ':+: (rest (rest music))) (- duration (get-musical-duration (second music)))))))]
+            [_ (cons (parse-music-duration (second music) duration))])]
+    [':=: (cons (first music) (parse-music-duration-parallel (rest music) duration))
+          #;(match (second music)
+            [(list 'note (list a b) c) (if (< duration (get-musical-duration (second music)))
+                       '()
+                       (parse-music-duration (cons ':=: (rest (rest music))) duration))]
+            [_ (parse-music-duration (second music) duration)])]
     [_ (parse-music-duration (first music) duration)]))
 
 (define (parse-music-duration-sequence note-lst duration)
   (if (empty? note-lst)
-      '()
+      0
       (match (first note-lst)
         [(list 'note (list a b) note-dur) (if (<= duration note-dur)
                                               (list (first note-lst))
@@ -247,24 +253,24 @@
            [_ (parse-music-duration-parallel x duration)])) note-lst))
 ;(parse-music-duration-parallel '((note (C 2) 1) (note (C 2) 1) (:+: (note (C 2) 5) (note (E 2) 1))) .5)
 
-;returns the same list you passed minus as much of the duration you passed with information loss
+;returns the same list you passed minus as much of the duration you passed without information loss
 (define (parse-past-music-duration music duration)
-  (if (or (empty? music) (<= duration 0))
+  (if (<= duration 0)
       music
       (match (first music)
         [':+: (if (< 1 (length music))
                   (match (second music)
-                    [(list 'note (list a b) note-duration) (if (< duration note-duration)
-                                                   (if (empty? (rest (rest music)))
-                                                       `(:+: (note (,a ,b) ,(- note-duration duration)))
-                                                       (append `(:+: (note (,a ,b) ,(- note-duration duration))) (rest (rest music))))
+                    [(list 'note (list a b) c) (if (< duration (get-musical-duration (second music)))
+                                                   (if (empty? (rest music))
+                                                       '()
+                                                       (cons ':+: (rest music)))
                                                    (if (empty? (rest (rest music)))
                                                        '()
-                                                       (parse-past-music-duration (cons ':+: (rest (rest music))) (- duration note-duration))))]
+                                                       (parse-past-music-duration (cons ':+: (rest (rest music))) (- duration (get-musical-duration (second music))))))]
                     [(list 'rest rest-duration) (if (< duration rest-duration)
-                                                    (if (empty? (rest (rest music)))
-                                                       `(:+: (rest ,(- rest-duration duration)))
-                                                       (append `(:+: (rest ,(- rest-duration duration))) (rest (rest music))))
+                                                    (if (empty? (rest music))
+                                                        '()
+                                                        (cons ':+: (rest music)))
                                                     (if (empty? (rest (rest music)))
                                                         '()
                                                         (parse-past-music-duration (cons ':+: (rest (rest music))) (- duration rest-duration))))]
@@ -277,68 +283,22 @@
                   '()#|there is nothing left, you read past the entire piece|#)]
         [':=: (letrec ([func (lambda (x) (match x
                                            [(list 'note (list a b) note-duration) (if (< duration note-duration)
-                                                                                      `(note (,a ,b) ,(- note-duration duration))
+                                                                                      x
                                                                                       'removePlease)]
                                            [(list 'rest rest-duration) (if (< duration rest-duration)
-                                                                           `(rest ,(rest-duration duration))
+                                                                           x
                                                                            'removePlease)]
                                            [_ 
                                             (if (< duration (get-musical-duration x))
-                                                (parse-past-music-duration x duration)
+                                                (append (parse-past-music-duration x duration) (rest music))
                                                 'removePlease)]))])
                 (if (< 1 (length music))
                     (let ([filtered-lst (filter music? (map func (rest music)))])
                       (if (empty? filtered-lst)
                           '()
-                          (cons ':=: filtered-lst)))
+                          (cons ':=: (filter music? (map func (rest music))))))
                     '()#|there is nothing left, you read past the entire piece|#))]
         [_ (parse-past-music-duration (first music) duration)])))
-
-#|
-;make a piece of music that is duration long. simply split if duration is too great.
-(define (get-music-for-duration music dur)
-    (cond [(or (empty? music) (equal? 0 dur)) '()]
-        [(equal? dur (get-musical-duration music)) music]
-        [(< (get-musical-duration music) dur) (append (append '(:+:) (list music)) (list `(rest ,(- dur (get-musical-duration music)))))]
-        [(equal? 'note (first music)) (cond [(< (note-in-lst-duration music) dur) music]
-                                            [else `(rest ,dur)])]
-        [(equal? 'rest (first music)) (cond [(< (rest-in-lst-duration music) dur) music]
-                                            [else `(rest ,dur)])]
-        [(equal? ':+: (first music)) (cond [(and (not (empty? (rest (rest music)))) (<= (get-musical-duration (second music)) dur))
-                                            (let ([rst-music (get-music-for-duration (cons ':+: (rest (rest music))) (- dur (get-musical-duration (second music))))])
-                                              (if (empty? rst-music)
-                                                  (cons ':+: (cons (second music) rst-music))
-                                                  (cons ':+: (cons (second music) (list rst-music)))))]
-                                           [else `(rest ,dur)])]
-        #|TODO this is totes broken. need a separate func like the parallel thing above to handle getting the duration of the parallel music through|#
-        [(equal? ':=: (first music)) (cond [(and (not (empty? (rest (rest music)))) (<= (get-musical-duration (second music)) dur))
-                                            (let ([rst-music (get-music-for-duration (cons ':=: (rest (rest music))) dur)])
-                                              (if (empty? rst-music)
-                                                  (cons ':=: (cons (second music) rst-music))
-                                                  (cons ':=: (cons (second music) (list rst-music)))))]
-                                           [else `(rest ,dur)])]
-        [else `(rest ,dur)]))
-
-;make a piece of music that is the same duration minus exactly one measure. if there is an overlap, split it (if its a rest you can put another rest. if its a note you lose it)
-(define (get-music-after-duration music dur)
-  (cond [(or (empty? music) (equal? 0 dur) (< (get-musical-duration music) dur) (equal? dur (get-musical-duration music))) '()]
-        
-        [(equal? ':+: (first music)) (cond [(and (not (empty? (rest (rest music)))) (< (get-musical-duration (second music)) dur))
-                                            (get-music-after-duration (cons ':+: (rest (rest music))) (- dur (get-musical-duration (second music))))]
-                                           [(and (not (empty? (rest (rest music)))) (> (get-musical-duration (second music)) dur))
-                                            (cons ':+: (rest (rest music)))]
-                                           [(and (not (empty? (rest (rest music)))) (equal? (get-musical-duration (second music)) dur))
-                                            (cons ':+: (rest (rest music)))]
-                                           [else '()])]
-        [(equal? ':=: (first music)) (cond [(and (not (empty? (rest (rest music)))) (< (get-musical-duration (second music)) dur))
-                                            (get-music-after-duration (cons ':=: (rest (rest music))) dur)]
-                                            [(and (not (empty? (rest (rest music)))) (> (get-musical-duration (second music)) dur))
-                                             '()]
-                                            [(and (not (empty? (rest (rest music)))) (equal? (get-musical-duration (second music)) dur))
-                                            (rest (rest music))]
-                                           [else '()])]
-        [else '()]))
-|#
 
 (define (music? lst)
   (match lst
@@ -347,6 +307,16 @@
     [(list ':+: _ ...) #t]
     [(list ':=: _ ...) #t]
     ['removePlease #f]))
+
+#;(define chord-test
+  '(:+:
+    (:=: (note (C 5) 5) (note (E 5) 5) (note (G 5) 5))
+    (rest 1)
+    (:=: (:+: (note (C 5) 5)) (note (E 5) 5) (note (G 5) 5))
+    (:+: (rest 1))
+    (:=: (:+: (note (C 5) 5)) (note (E 5) 5) (note (G 5) 5))
+    (:+: (rest 1))
+    (:=: (:+: (note (C 5) 5)) (note (E 5) 5) (note (G 5) 5))))
 
 (provide get-musical-duration
          get-musical-duration_parallel
@@ -357,8 +327,6 @@
          rest-in-lst-duration
          parse-music-duration
          parse-past-music-duration
-         get-music-for-duration
-         get-music-after-duration
          peel-off-seventh
          seventh-chord?
          chords-to-degrees
@@ -390,32 +358,3 @@
          skore:rest
          (struct-out skore:midi-note-on)
          (struct-out skore:midi-note-off))
-
-(define arp-test
-  '(:+: 
-    (note (C 3) 1/4) (note (E 3) 1/4) (note (G 3) 1/4) (note (E 3) 1/4)
-    (note (F 3) 1/4) (note (A 3) 1/4) (note (C 3) 1/4) (note (A 3) 1/4)
-    (note (G 3) 1/4) (note (B 3) 1/4) (note (D 3) 1/4) (note (B 3) 1/4)
-    (note (F 3) 1/4) (note (A 3) 1/4) (note (C 3) 1/4) (note (A 3) 1/4)
-    
-    (note (C 3) 1/4) (note (E 3) 1/4) (note (G 3) 1/4) (note (E 3) 1/4)
-    (note (F 3) 1/4) (note (A 3) 1/4) (note (C 3) 1/4) (note (A 3) 1/4)
-    (note (G 3) 1/4) (note (B 3) 1/4) (note (D 3) 1/4) (note (B 3) 1/4)
-    (note (G 3) 1/4) (note (B 3) 1/4) (note (D 3) 1/4) (note (B 3) 1/4)
-   
-    (note (C 3) 1/4) (note (E 3) 1/4) (note (G 3) 1/4) (note (E 3) 1/4)
-    (note (F 3) 1/4) (note (A 3) 1/4) (note (C 3) 1/4) (note (A 3) 1/4)
-    (note (G 3) 1/4) (note (B 3) 1/4) (note (D 3) 1/4) (note (B 3) 1/4)
-    (note (F 3) 1/4) (note (A 3) 1/4) (note (C 3) 1/4) (note (A 3) 1/4)
-    
-    (note (C 3) 1/4) (note (E 3) 1/4) (note (G 3) 1/4) (note (E 3) 1/4)
-    (note (F 3) 1/4) (note (A 3) 1/4) (note (C 3) 1/4) (note (A 3) 1/4)
-    (note (G 3) 1/4) (note (B 3) 1/4) (note (D 3) 1/4) (note (B 3) 1/4)
-    (note (C 3) 1/4) (note (E 3) 1/4) (note (G 3) 1/4) (note (C 3) 1/4)))
-
-(define (looper music)
-  (if (empty? music)
-      1
-      (begin
-        (get-music-for-duration music 1)
-        (looper (get-music-after-duration music 1)))))

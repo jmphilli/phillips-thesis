@@ -21,8 +21,16 @@ int getQSize(){
   return q->size;
 }
 
+void logger(UInt64 num){
+  FILE* fptr;
+  fptr = fopen("myFile.output", "a+");
+  fprintf(fptr, "%X\n", num);
+  fclose(fptr);
+}
+
 void enqueue(Queue* q, MIDIPacketList* p){
   MIDIPacket* packet;
+  /*UInt64 num;*/
   int i;
 
   packet = &p->packet[0];
@@ -31,6 +39,10 @@ void enqueue(Queue* q, MIDIPacketList* p){
     q->size++;
     packet = MIDIPacketNext(packet);
   }
+
+  /*num = (*(MIDIPacket*)&p->packet[0]).timeStamp;
+
+  logger(num);*/
 }
 
 MIDIPacket* dequeue(Queue* q){

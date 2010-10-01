@@ -14,7 +14,7 @@
   (get-ffi-obj 'getMidi midi-scheme-lib
                (_fun -> _pointer)))
 
-(define get-q-size
+#;(define get-q-size
   (get-ffi-obj 'getQSize midi-scheme-lib
                (_fun -> _int)))
 
@@ -23,24 +23,45 @@
                (_fun -> _racket)))
 
 (define (midi-packet-unpacker scheme-midi-ptr)
-  (let ([data (ptr-ref scheme-midi-ptr (_list-struct _uint64
-                                                     _uint16
-                                                     (_list-struct _byte _byte _byte)))]);gotta be a smart way to read this right TODO
-    data))
+  (cond [scheme-midi-ptr 
+          (let ([data (ptr-ref scheme-midi-ptr (_list-struct (_list-struct _byte _byte _byte _byte _byte _byte _byte _byte);_uint64
+                                                             _uint16
+                                                             (_list-struct _byte _byte _byte _byte _byte _byte _byte _byte
+                                                                           _byte _byte _byte _byte _byte _byte _byte _byte
+                                                                           _byte _byte _byte _byte _byte _byte _byte _byte
+                                                                           _byte _byte _byte _byte _byte _byte _byte _byte
+                                                                           _byte _byte _byte _byte _byte _byte _byte _byte
+                                                                           _byte _byte _byte _byte _byte _byte _byte _byte
+                                                                           _byte _byte _byte _byte _byte _byte _byte _byte
+                                                                           _byte _byte _byte _byte _byte _byte _byte _byte
+                                                                           _byte _byte _byte _byte _byte _byte _byte _byte
+                                                                           _byte _byte _byte _byte _byte _byte _byte _byte
+                                                                           _byte _byte _byte _byte _byte _byte _byte _byte
+                                                                           _byte _byte _byte _byte _byte _byte _byte _byte
+                                                                           _byte _byte _byte _byte _byte _byte _byte _byte
+                                                                           _byte _byte _byte _byte _byte _byte _byte _byte
+                                                                           _byte _byte _byte _byte _byte _byte _byte _byte
+                                                                           _byte _byte _byte _byte _byte _byte _byte _byte
+                                                                           _byte _byte _byte _byte _byte _byte _byte _byte
+                                                                           _byte _byte _byte _byte _byte _byte _byte _byte
+                                                                           _byte _byte _byte _byte _byte _byte _byte _byte
+                                                                           _byte _byte _byte _byte _byte _byte _byte _byte
+                                                                           _byte _byte _byte _byte _byte _byte _byte _byte
+                                                                           _byte _byte _byte _byte _byte _byte _byte _byte
+                                                                           _byte _byte _byte _byte _byte _byte _byte _byte
+                                                                           _byte _byte _byte _byte _byte _byte _byte _byte
+                                                                           _byte _byte _byte _byte _byte _byte _byte _byte
+                                                                           _byte _byte _byte _byte _byte _byte _byte _byte
+                                                                           _byte _byte _byte _byte _byte _byte _byte _byte
+                                                                           _byte _byte _byte _byte _byte _byte _byte _byte
+                                                                           _byte _byte _byte _byte _byte _byte _byte _byte
+                                                                           _byte _byte _byte _byte _byte _byte _byte _byte
+                                                                           _byte _byte _byte _byte _byte _byte _byte _byte
+                                                                           _byte _byte _byte _byte _byte _byte _byte _byte)))]);gotta be a smart way to read this right TODO
+            (filter data))]))
 
 (define (read-midi-packet)
   (midi-packet-unpacker (get-midi)))
-
-;this returns the right stuff now, but what i want is to have the result of sync be the actual midi packet. go change the c code to get that to happen. the return statement i want is unreachable due to my current return
-#;(define midi-sync
-  (lambda () (begin
-               (sync (get-queue-for-waiting))
-               (read-midi-packet))))
-
-#;(begin
-    (sync (midi-event-to-be-synced))
-    (printf "~a~n" (get-q-size))
-    (read-midi-packet))
 
 (define midi-event-to-be-synced get-queue-for-waiting)
 
@@ -49,32 +70,37 @@
       "Connected!"
       "Not Connected! Is a MIDI source connected to your computer? Email jjustinphillipss@gmail.com for assistance."))
 
+;assuming that the tempo is 120 and 4/4 time sig (defaults) then convert the detla time that my keyboard puts out into 'real' delta time
+(define (filter data)
+  (cond 
+    [(not (or
+               (equal? #xF8 (first (third data)))
+               (equal? #xFE (first (third data))))) (fix-time data)]))
+
+(define (fix-time data) data)
+  ;(cons (quotient (quotient (delta-time-fix (first data)) 12) 1000000) (rest data)))
+
+(define saved-time -1)
+
+(define (delta-time-fix time)
+  (match saved-time
+    [-1 (begin
+          (set! saved-time time)
+          0)]
+    [_ (let ([val (- time saved-time)])
+         (begin
+           (set! saved-time time)
+           (printf "~a val here ~n" val)
+           val))]))
+
 (provide connect
          midi-event-to-be-synced
-         read-midi-packet)
+         read-midi-packet
+         filter)
 
-
-;#|These two things, while they may be appropriate for my keyboard, do not belong here TODO|#
-;;some midi commands like the command xF8 mean absolutely nothing. throw them away. *my keyboard seems to barf out xF8 all the time. this will make my life easier...
-;#;(define (remove-junk-midi lst)
-;  (map (lambda (x) (cond [(not (or
-;                                (equal? #xF8 (second x))
-;                                (equal? #xFE (second x)))) x]
-;                         [else 'junk]))lst))
-;
-;;seems like delta time isn't used as per the spec... at least with my keyboard
-;#;(define (separate-delta-time lst)
-;  (map (lambda (x) (cond [(list? x) (list (first x) (rest x))])) lst))
-;
-;#;(define (read-midi)
-;  (begin 
-;    (let* ([pkt (box #f)]
-;           [lst (for/list ([i (list-pkt-list-length)])
-;                  (let ([new-ptr (get-midi (unbox pkt))])
-;                    (begin
-;                      (set-box! pkt new-ptr)
-;                      (midi-packet-unpacker new-ptr))))])
-;      (scheme-has-read!)
-;      (separate-delta-time (remove-junk-midi lst)))))
-
-
+;163140453741712 -- 12:40:17:526
+;13:16:09:292 -- 52 210 234 14 85 150 0 0 
+#|
+My device uses SMPTE Time - 25 frames * 40 subframes. BPM from device is 120. Sends a MIDI clock signal 2 times every second.
+So the time coming across is milliseconds at the end 
+|#

@@ -1,7 +1,7 @@
 #lang Racket
 
-(require (prefix-in skore: (lib "midi/midi-layer.ss"))
-         (prefix-in skore: (lib "midi/user.ss"))
+(require ;(prefix-in skore: (lib "midi/midi-layer.ss"))
+         ;(prefix-in skore: (lib "midi/user.ss"))
          "../Lib/utility.rkt")
 
 (define midi-note-on-flag #x90)
@@ -25,7 +25,8 @@
 
 ;eventually provide other interfaces other than just midi... but for now ...
 (define (parse stream tempo)
-  (parse-stream (list (parse-stream_midi stream)) tempo))
+  (cond [(not (empty? stream)) (parse-stream (list (parse-stream_midi stream)) tempo)]
+        [else '()]))
 
 ;concatenates the new music stuff (notes chords, whatever its been handed) to the old music.
 ; the old music is assumed to start at abs-time == 0
@@ -36,17 +37,17 @@
 (define (music-concat music tempo)
   (if (empty? (unbox music-lst))
       (cond [(equal? (first music) (unbox absolute-start)) (begin 
-                                                             (printf "this~a" music)
+                                                             ;(printf "this~a" music)
                                                              (set-box! music-lst `(:+: ,(first (rest music))))
                                                              (unbox music-lst))]
             [(< (unbox absolute-start) (first music)) (begin
-                                                        (printf "that")
+                                                        ;(printf "that")
                                                         (set-box! music-lst (append `(:+: ,(make-rest (unbox absolute-start) (first music) tempo)) (rest music)))
                                                         (unbox music-lst))]
             [else (raise 'restCreationError)])
       (let ([new-piece (concatenate-musics (unbox music-lst) (unbox absolute-start) (rest music) (first music) tempo)])
         (begin
-          (printf "those")
+          ;(printf "those")
           (set-box! music-lst new-piece)
           (unbox music-lst)))))
 
@@ -79,21 +80,24 @@
             (let ([chord (chord? x (second lst))])
               (if chord
                   (begin
-                    (printf "alligator~n")
+                    ;(printf "alligator~n")
                     (list ':=: (datum->music x tempo) (data->music (rest lst) tempo)))
                   (begin
-                    (printf "7")
+                    ;(printf "7")
                     (list ':=: (datum->music x tempo) (list ':+: (make-rest x (second lst) tempo) (data->music (rest lst) tempo))))))
             ;sequence
             (let ([musical-rest (rest? x (second lst) tempo)])
               (if musical-rest
-                  (begin (printf "ouch~n")(list ':+: (datum->music x tempo) musical-rest (data->music (rest lst) tempo)))
-                  (begin (printf "whoo-ya~n")(list ':+: (datum->music x tempo) (data->music (rest lst) tempo)))))))))
+                  (begin ;(printf "ouch~n")
+                    (list ':+: (datum->music x tempo) musical-rest (data->music (rest lst) tempo)))
+                  (begin ;(printf "whoo-ya~n")
+                    (list ':+: (datum->music x tempo) (data->music (rest lst) tempo)))))))))
 
 (define (rest? x y tempo)
   (if (< (+ (first x) (second x)) (first y))
       ;#t, make the rest
-      (begin (printf "8")(make-rest x y tempo))
+      (begin ;(printf "8")
+        (make-rest x y tempo))
       #f))
 
 ;abs-start duration note
@@ -109,7 +113,8 @@
           (raise 'improperRestTime))
       (if (and (number? x) (number? y))
           (cond [(< x y) (skore:rest (/ (- y x) tempo))]
-                [else (begin (printf "~a ~a ~n" x y) (raise 'improperRestTime))])
+                [else (begin ;(printf "~a ~a ~n" x y) 
+                        (raise 'improperRestTime))])
           (raise 'unsupported))))
   
 (define (datum->music datum tempo)
@@ -117,7 +122,7 @@
         [duration (/ (second datum) tempo)])
   `(note ,pitch ,duration)))
 
-(define (pitch-num->pitch note)
+#;(define (pitch-num->pitch note)
   (skore:pitch-num->pitch (skore:midi-note-on-pitch note)))
 
 (define (pair-notes midi-stream)
@@ -251,29 +256,33 @@
              (rest-in-lst? (first note-lst))) (if (<= (+ aggregate-time (* tempo (get-musical-duration (first note-lst)))) new-chunk-start-time)
                                              (cons (first note-lst) (sequential-music-handler (rest note-lst) (+ aggregate-time (* tempo (get-musical-duration (first note-lst)))) new-chunk new-chunk-start-time tempo))
                                              ;add it
-                                             (cond [(equal? aggregate-time new-chunk-start-time) (begin (printf "starfish") (add-music-here_seq note-lst new-chunk '(:+:)))]
+                                             (cond [(equal? aggregate-time new-chunk-start-time) (begin ;(printf "starfish") 
+                                                                                                        (add-music-here_seq note-lst new-chunk '(:+:)))]
                                                    [else (begin
-                                                           (printf "~n4~n")
+                                                           ;(printf "~n4~n")
                                                            (add-music-here_seq note-lst `(:+: ,(make-rest aggregate-time new-chunk-start-time tempo) ,new-chunk) '(:+:)))]))]
         [else ;its a sub-list
          (if (<= (+ aggregate-time (* tempo (get-musical-duration (first note-lst)))) new-chunk-start-time)
              (cons (first note-lst) (sequential-music-handler (rest note-lst) (+ aggregate-time (* tempo (get-musical-duration (first note-lst)))) new-chunk new-chunk-start-time tempo))
              ;add it
-             (cond [(equal? aggregate-time new-chunk-start-time) (begin (printf "cloud")(add-music-here_seq note-lst new-chunk '(:+:)))]
-                   [else (begin (printf "pirate")(add-music-here_seq note-lst (list (append `(:+: ,(make-rest aggregate-time new-chunk-start-time tempo)) new-chunk)) '(:+:)))]))]))
+             (cond [(equal? aggregate-time new-chunk-start-time) (begin ;(printf "cloud")
+                                                                        (add-music-here_seq note-lst new-chunk '(:+:)))]
+                   [else (begin ;(printf "pirate")
+                                (add-music-here_seq note-lst (list (append `(:+: ,(make-rest aggregate-time new-chunk-start-time tempo)) new-chunk)) '(:+:)))]))]))
 
 (define (parallel-music-handler note-lst aggregate-time new-chunk new-chunk-start-time tempo)
   (cond [(or (empty? note-lst)
              (<= (+ aggregate-time (* tempo (get-musical-duration_parallel note-lst))) new-chunk-start-time)) (list #f)]
         [else ;i need to add it
-         (cond [(equal? aggregate-time new-chunk-start-time) (begin (printf "ninja" )(append note-lst new-chunk))]
+         (cond [(equal? aggregate-time new-chunk-start-time) (begin ;(printf "ninja" )
+                                                                    (append note-lst new-chunk))]
                [else (begin
-                       (printf "~n6~n")
+                       ;(printf "~n6~n")
                        (append note-lst `((:+: ,(make-rest aggregate-time new-chunk-start-time tempo) ,(list new-chunk)))))])]))
 
 (define (add-music-here_seq note-lst new-chunk joiner)
   (begin
-    (printf "adding~n")
+    ;(printf "adding~n")
     (if (equal? ':=: (first (first note-lst)))
         (list (cons ':=: (append (rest (first note-lst)) new-chunk)))
         (list (append (cons ':=: (list (append joiner note-lst))) new-chunk)))))
@@ -333,7 +342,7 @@
 (equal? (concatenate-musics test-music-c 0 test-music-c 0 1) `(:+: (:=: ,test-music-c ,test-music-c)))
 (equal? (concatenate-musics test-music-c 0 test-music-c (get-musical-duration test-music-c) 1) (append test-music-c (list test-music-c)))
 |#
-#|
+
 ;more test stuff
 (define c-on-chord '(1 3 (144 60 23)))
 (define e-on-chord '(0 3 (144 64 23)))
@@ -409,6 +418,6 @@
     (parse note-off-long-sus-2 1)
     (parse g-off-arp 1)
     (parse note-off-long-sus 1))
-  )|#
+  )
 
 (provide parse)

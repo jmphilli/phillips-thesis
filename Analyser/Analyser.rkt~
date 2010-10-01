@@ -1,6 +1,6 @@
 #lang Racket
 
-(require (prefix-in skore: (lib "midi/user.ss"))
+(require ;(prefix-in skore: (lib "midi/user.ss"))
          ;(prefix-in skore: (lib "midi/midi-layer.ss"))
          ;(prefix-in skore: (lib "midi/midi-to-music.ss"))
          "../Lib/utility.rkt")
@@ -13,34 +13,7 @@ Fugues would be great test cases.
 Jazz for the color notes. 
 |#
 
-(define UNISON 0)
-(define MINOR_SECOND 1)
-(define MAJOR_SECOND 2)
-(define MINOR_THIRD 3)
-(define MAJOR_THIRD 4)
-(define PERFECT_FOURTH 5)
-(define DIMINISHED_FIFTH 6)
-(define PERFECT_FIFTH 7)
-(define AUGMENTED_FIFTH 8)
-(define MINOR_SIXTH 8)
-(define MAJOR_SIXTH 9)
-(define DIMINISHED_SEVENTH 9)
-(define MINOR_SEVENTH 10)
-(define MAJOR_SEVENTH 11)
-
-
-(define ALL_KEYS '(C c D d E e F f G g A a B b Cs cs Df df Ds ds Ef ef Fs fs Gf gf As as Bf bf))
-
-;without-any-color-notes ... (see-> super lame.)
-#|(define MAJOR_LST (list UNISON MAJOR_SECOND MAJOR_THIRD PERFECT_FOURTH PERFECT_FIFTH MAJOR_SIXTH MAJOR_SEVENTH))
-(define MINOR_LST (list UNISON MAJOR_SECOND MINOR_THIRD PERFECT_FOURTH PERFECT_FIFTH MINOR_SIXTH MINOR_SEVENTH))|#
-
-;with color notes ...
-(define MAJOR_LST (list UNISON MAJOR_SECOND MINOR_THIRD MAJOR_THIRD PERFECT_FOURTH PERFECT_FIFTH MAJOR_SIXTH MINOR_SEVENTH MAJOR_SEVENTH))
-(define MINOR_LST (list UNISON MAJOR_SECOND MINOR_THIRD PERFECT_FOURTH PERFECT_FIFTH MINOR_SIXTH MAJOR_SIXTH MINOR_SEVENTH MAJOR_SEVENTH))
-
-
-(define EMPTY_PIECE (make-piece ALL_KEYS '4/4 '()))
+;TODO add melody analyzing content.
 
 (define (analyse music piece)
   (analyse-piece music 4/4 piece))
@@ -67,7 +40,7 @@ Jazz for the color notes.
 
 (define (get-notes-in-measure music)
   (begin
-    (printf "~a" music)
+    ;(printf "~a" music)
     (parse-music-duration music 1)))
 
 (define (read-past-measure music)

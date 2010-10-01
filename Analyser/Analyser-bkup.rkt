@@ -1,6 +1,9 @@
 #lang Racket
 
-(require "../Lib/utility.rkt")
+(require ;(prefix-in skore: (lib "midi/user.ss"))
+         ;(prefix-in skore: (lib "midi/midi-layer.ss"))
+         ;(prefix-in skore: (lib "midi/midi-to-music.ss"))
+         "../Lib/utility.rkt")
 
 #|
 This works ok. Its too strict. I could have a color note rule or something. Modulation isn't handled either. 
@@ -16,48 +19,51 @@ Jazz for the color notes.
   (analyse-piece music (piece-time-signature piece) piece))
 
 (define (analyse-piece music-lst time-signature piece)
-  (let* ([key (find-key-signature music-lst (piece-key-signature piece) time-signature)]
-         [chords (find-chord-progression music-lst key time-signature)])
-    (make-piece key time-signature (append (piece-changes piece) chords))))
+  (let* ([key (find-key-signature music-lst (piece-key-signature piece))]
+         [chords (find-chord-progression music-lst key)])
+    (make-piece key time-signature chords)))
 
-(define (find-chord-progression music key time-signature)
-  (let ([chords (find-chords music time-signature)])
+(define (find-chord-progression music key)
+  (let ([chords (find-chords music)])
     (if (equal? 1 (length key))
-        (chords-to-degrees chords (first key))
+        (chords-to-degrees chords key)
         chords)))
 
-(define (find-chords music time-signature)
+(define (find-chords music)
   (if (empty? music)
       '()
-      (let ([chord (read-chord (get-notes-in-beat music time-signature) time-signature)])
-        (cons chord (find-chords (read-past-beat music time-signature) time-signature)))))
+      (let ([chord (read-chord (get-notes-in-measure music))])
+        (append (chord->changes chord (how-much-to-read-past-measure? music)) (find-chords (read-past-measure music))))))
 
-(define (get-notes-in-beat music time-signature)
+(define (chord->changes chord-symbol number)
+  (build-list number (lambda (x) chord-symbol)))
+
+(define (get-notes-in-measure music)
   (begin
-    #;(parse-music-duration music (string->number (substring (symbol->string time-signature) 0 1)))
+    ;(printf "~a" music)
     (parse-music-duration music 1)))
 
-;(define (read-past-measure-fix-this music)
-;  (letrec ([func (lambda (dur) (let ([music-minus-duration (parse-past-music-duration music dur)])
-;                                 (if (equal? (length music) (length music-minus-duration))
-;                                     (func (+ 1 dur))
-;                                     music-minus-duration)))])
-;    (func 1)))
+(define (read-past-measure music)
+  (letrec ([func (lambda (dur) (let ([music-minus-duration (parse-past-music-duration music dur)])
+                                 (if (equal? (length music) (length music-minus-duration))
+                                     (func (+ 1 dur))
+                                     music-minus-duration)))])
+    (func 1)))
 
 ;kinda feel like i can use the previous function and include a continuation k to get all the functionality in one piece of code, this works though i guess...
-;(define (how-much-to-read-past-measure? music)
-;  (letrec ([func (lambda (dur) (let ([music-minus-duration (parse-past-music-duration music dur)])
-;                                 (if (equal? (length music) (length music-minus-duration))
-;                                     (func (+ 1 dur))
-;                                     dur)))])
-;    (func 1)))
+(define (how-much-to-read-past-measure? music)
+  (letrec ([func (lambda (dur) (let ([music-minus-duration (parse-past-music-duration music dur)])
+                                 (if (equal? (length music) (length music-minus-duration))
+                                     (func (+ 1 dur))
+                                     dur)))])
+    (func 1)))
 
 ;given a measure of music. is it a chord? 
-(define (read-chord note-lst time-signature)
+(define (read-chord note-lst)
   (match note-lst
-    [(list ':=: _ ...) (make-chord-symbol (list-notes note-lst time-signature))]
-    [(list (list 'note (list a b) c) ...) (make-chord-symbol (list-notes note-lst time-signature))]
-    [(list ':+: _ ...) (make-chord-symbol (list-notes note-lst time-signature))]
+    [(list ':=: _ ...) (make-chord-symbol (list-notes note-lst))]
+    [(list (list 'note (list a b) c) ...) (make-chord-symbol (list-notes note-lst))]
+    [(list ':+: _ ...) (make-chord-symbol (list-notes note-lst))]
     [_ 'NC]))
 
 ;really simple. really gross. 
@@ -157,24 +163,27 @@ Jazz for the color notes.
           note
           (perfect-fifth?_ note (rest lst)))))
 
-(define (list-notes chord time-signature)
+(define (list-notes chord)
   (if (empty? chord)
       '()
-      (cond [(list? (first chord)) (cond [(equal? 'note (first (first chord))) (cons (first (second (first chord))) (list-notes (rest chord) time-signature))]
-                                         [(equal? ':=: (first (first chord))) (append (map (lambda (x) (list-notes x time-signature)) (rest (first chord))) (list-notes (rest chord) time-signature))]
+      (cond [(list? (first chord)) (cond [(equal? 'note (first (first chord))) (cons (first (second (first chord))) (list-notes (rest chord)))]
+                                         [(equal? ':=: (first (first chord))) (append (map list-notes (rest (first chord))) (list-notes (rest chord)))]
                                          [(equal? ':+: (first (first chord))) 
-                                          (let ([down-beat (read-beat (first chord) time-signature)])
+                                          (let ([down-beat (read-strong-beat (first chord))])
                                             (if (equal? 'note (first down-beat))
-                                                (cons (first (second down-beat)) (list-notes (rest chord) time-signature))
-                                                (list-notes (rest chord) time-signature)))]
-                                         [else (list-notes (rest chord) time-signature)])]
+                                                (cons (first (second down-beat)) (list-notes (rest chord)))
+                                                (list-notes (rest chord))))]
+                                         [else (list-notes (rest chord))])]
             [(equal? 'note (first chord)) (first (second chord))]
-            [else (list-notes (rest chord) time-signature)])))
+            [else (list-notes (rest chord))])))
 
-(define (find-key-signature music possible-keys time-signature)
+(define (find-key-signature music possible-keys)
+  (find-key-signature_recur music possible-keys))
+
+(define (find-key-signature_recur music possible-keys)
   (if (empty? music)
       possible-keys
-      (find-key-signature (read-past-beat music time-signature) (fit-in-key-signature? (read-beat music time-signature) possible-keys) time-signature)))
+      (find-key-signature_recur (read-past-strong-beat music) (fit-in-key-signature? (read-strong-beat music) possible-keys))))
 
 (define (fit-in-key-signature? music possible-keys)
   (if (empty? possible-keys)
@@ -193,17 +202,13 @@ Jazz for the color notes.
          (let ([interval (get-tonal-distance key (first (second music)))])
            (not (equal? #f (member interval interval-lst))))]
         [(or (equal? ':+: (first music))
-             (equal? ':=: (first music))) 
-         (andmap (lambda (x) (music-in-key? x key interval-lst)) (rest music))]))
-         
-         
-;         (let ([on-beat-notes (on-beat-note music)])
-;                                            (if (equal? #f on-beat-notes)
-;                                                #t
-;                                                (if (not (equal? 'note (first on-beat-notes)))
-;                                                    (andmap (lambda (x) (cond [(equal? #f x) #t]
-;                                                                              [else (music-in-key? x key interval-lst)])) on-beat-notes)
-;                                                    (music-in-key? on-beat-notes key interval-lst))))]))
+             (equal? ':=: (first music))) (let ([on-beat-notes (on-beat-note music)])
+                                            (if (equal? #f on-beat-notes)
+                                                #t
+                                                (if (not (equal? 'note (first on-beat-notes)))
+                                                    (andmap (lambda (x) (cond [(equal? #f x) #t]
+                                                                              [else (music-in-key? x key interval-lst)])) on-beat-notes)
+                                                    (music-in-key? on-beat-notes key interval-lst))))]))
 
 (define (on-beat-note music)
   (cond [(equal? (first music) 'note) music]
@@ -213,38 +218,34 @@ Jazz for the color notes.
              (map on-beat-note (rest music))
              (on-beat-note (second music)))]))
 
-;time sig should be of the form '3:4 or something like that ... '3-4
-(define (read-beat music time-signature)
-  #;(let ([beats-per-measure (string->number (substring (symbol->string time-signature) 0 1))])
-    (parse-music-duration music beats-per-music))
-  (parse-music-duration music 1))
+(define (read-strong-beat music)
+  (cond [(or (equal? 'note (first music))
+             (equal? ':=: (first music))) music]
+        [(equal? 'rest (first music)) '()]
+        [(equal? ':+: (first music)) (second music)]))
 
-    ;(cond [(or (equal? 'note (first music))
-    ;           (equal? ':=: (first music))) music]
-    ;      [(equal? 'rest (first music)) '()]
-    ;      [(equal? ':+: (first music)) (second music)])))
-
-(define (read-past-beat music time-signature)
-  #;(let ([beats-per-measure (string->number (substring (symbol->string time-signature) 0 1))])
-    (parse-past-music-duration music beats-per-measure))
-  (parse-past-music-duration music 1))
-;  (cond [(or (equal? 'note (first music))
-;             (equal? 'rest (first music))
-;             (equal? ':=: (first music))) '()]
-;        [(equal? ':+: (first music)) 
-;         (if (< 2 (length music))
-;             (cons ':+: (rest (rest music)))
-;             '())#|The rest rest bit has to change for beat duration|#]
-;        [else (rest music)]));this one is super questionable..
+(define (read-past-strong-beat music)
+  (cond [(or (equal? 'note (first music))
+             (equal? 'rest (first music))
+             (equal? ':=: (first music))) '()]
+        [(equal? ':+: (first music)) 
+         (if (< 2 (length music))
+             (cons ':+: (rest (rest music)))
+             '())#|The rest rest bit has to change for beat duration|#]
+        [else (rest music)]));this one is super questionable..
 
 
 (define chord-test
   '(:+:
-    (:=: (note (C 5) 2) (note (E 5) 2) (note (G 5) 2))
-    (:=: (note (F 5) 2) (note (A 5) 2) (note (D 5) 2))
-    (:=: (note (C 5) 2) (note (E 5) 2) (note (G 5) 2))
-    (:=: (note (G 5) 2) (note (B 5) 2) (note (D 5) 2))))
-
+    (:=: (note (C 5) .125) (note (E 5) .125) (note (G 5) .125))
+    (rest 1)
+    (:=: (:+: (note (C 5) 5)) (note (E 5) 5) (note (G 5) 5))
+    (:+: (rest 1))
+    (:=: (:+: (note (C 5) 5)) (note (E 5) 5) (note (G 5) 5))
+    (:+: (rest 1))
+    (:=: (:+: (note (C 5) 5)) (note (E 5) 5) (note (G 5) 5))))
+;C F G a e d
+#|
 (define chord-test-2
   '(:+:
     (:=: (note (Df 5) 1) (note (Af 5) 1) (note (F 5) 1))
@@ -331,7 +332,7 @@ Jazz for the color notes.
     (note (F 3) 1/4) (note (A 3) 1/4) (note (C 3) 1/4) (note (A 3) 1/4)
     (note (G 3) 1/4) (note (Bf 3) 1/4) (note (D 3) 1/4) (note (F 3) 1/4)
     (note (C 3) 1/4) (note (E 3) 1/4) (note (G 3) 1/4) (note (Bf 3) 1/4)
-    (note (F 3) 1/4) (note (A 3) 1/4) (note (C 3) 1/4) (note (A 3) 1/4)))
+    (note (F 3) 1/4) (note (A 3) 1/4) (note (C 3) 1/4) (note (A 3) 1/4)))|#
 
 (provide analyse
          EMPTY_PIECE)

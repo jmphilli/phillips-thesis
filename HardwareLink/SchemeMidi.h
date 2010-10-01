@@ -3,12 +3,12 @@
 #include <unistd.h>
 #include <CoreMIDI/MIDIServices.h>
 
-#define MAX_QUEUE_SIZE 100
+#define MAX_QUEUE_SIZE 10000
 
 typedef struct{
   Scheme_Type t;
   int size;
-  MIDIPacket** pkts;
+  MIDIPacket** pkts; /*timestamp is a uint64*/
 } Queue;
 
 int getQSize();
@@ -16,6 +16,8 @@ int getQSize();
 Queue* newQueue();
 
 bool isEmpty(Queue* q);
+
+void logger(UInt64 num);
 
 void enqueue(Queue* q, MIDIPacketList* p);
 

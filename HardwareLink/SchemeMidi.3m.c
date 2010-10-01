@@ -197,6 +197,9 @@ typedef struct __sFILE {
   fpos_t _offset ; 
 }
 FILE ; 
+int fclose (FILE * ) ; 
+FILE * fopen (const char * , const char * ) __asm ("_" "fopen" "$UNIX2003" ) ; 
+int fprintf (FILE * , const char * , ... ) ; 
 extern const char * const sys_errlist [] ; 
 int printf (const char * , ... ) ; 
 char * ctermid (char * ) ; 
@@ -3104,6 +3107,7 @@ Queue ;
 int getQSize () ; 
 Queue * newQueue () ; 
 _Bool isEmpty (Queue * q ) ; 
+void logger (UInt64 num ) ; 
 void enqueue (Queue * q , MIDIPacketList * p ) ; 
 MIDIPacket * dequeue (Queue * q ) ; 
 void nullOp (Scheme_Object * data , void * fds ) ; 
@@ -3134,7 +3138,7 @@ Queue * newQueue () {
   q = NULLED_OUT ; 
   pktlist = NULLED_OUT ; 
   q = (Queue * ) FUNCCALL(SETUP_XfOrM1(_), malloc (sizeof (Queue ) ) ); 
-  pktlist = (MIDIPacket * * ) FUNCCALL(SETUP_XfOrM1(_), malloc (sizeof (MIDIPacket * ) * 100 ) ); 
+  pktlist = (MIDIPacket * * ) FUNCCALL(SETUP_XfOrM1(_), malloc (sizeof (MIDIPacket * ) * 10000 ) ); 
   q -> size = 0 ; 
   q -> pkts = pktlist ; 
   RET_VALUE_START (q ) RET_VALUE_END ; 
@@ -3150,6 +3154,26 @@ _Bool isEmpty (Queue * q ) {
 int getQSize () {
   /* No conversion */
   return q -> size ; 
+}
+void logger (UInt64 num ) {
+  FILE * fptr ; 
+  PREPARE_VAR_STACK_ONCE(1);
+  BLOCK_SETUP_TOP((PUSH(fptr, 0)));
+# define XfOrM4_COUNT (1)
+# define SETUP_XfOrM4(x) SETUP(XfOrM4_COUNT)
+# define BLOCK_SETUP(x) BLOCK_SETUP_once(x)
+# define FUNCCALL(s, x) FUNCCALL_once(s, x)
+# define FUNCCALL_EMPTY(x) FUNCCALL_EMPTY_once(x)
+# define FUNCCALL_AGAIN(x) FUNCCALL_AGAIN_once(x)
+  fptr = NULLED_OUT ; 
+  fptr = FUNCCALL(SETUP_XfOrM4(_), fopen ("myFile.output" , "a+" ) ); 
+  FUNCCALL_AGAIN(fprintf (fptr , "%X\n" , num ) ); 
+  FUNCCALL_EMPTY(fclose (fptr ) ); 
+  RET_NOTHING_AT_END ; 
+# undef BLOCK_SETUP
+# undef FUNCCALL
+# undef FUNCCALL_EMPTY
+# undef FUNCCALL_AGAIN
 }
 void enqueue (Queue * q , MIDIPacketList * p ) {
   /* No conversion */
@@ -3178,14 +3202,14 @@ Scheme_Object * scheme_initialize (Scheme_Env * env ) {
   Scheme_Object * __funcarg128 = NULLED_OUT ; 
   DECL_RET_SAVE (Scheme_Object * ) PREPARE_VAR_STACK_ONCE(2);
   BLOCK_SETUP_TOP((PUSH(mod_env, 0), PUSH(env, 1)));
-# define XfOrM10_COUNT (2)
-# define SETUP_XfOrM10(x) SETUP(XfOrM10_COUNT)
+# define XfOrM11_COUNT (2)
+# define SETUP_XfOrM11(x) SETUP(XfOrM11_COUNT)
 # define BLOCK_SETUP(x) BLOCK_SETUP_once(x)
 # define FUNCCALL(s, x) FUNCCALL_once(s, x)
 # define FUNCCALL_EMPTY(x) FUNCCALL_EMPTY_once(x)
 # define FUNCCALL_AGAIN(x) FUNCCALL_AGAIN_once(x)
   mod_env = NULLED_OUT ; 
-  mod_env = (__funcarg128 = FUNCCALL(SETUP_XfOrM10(_), scheme_intern_symbol ("SchemeMidi" ) ), FUNCCALL_AGAIN(scheme_primitive_module (__funcarg128 , env ) )) ; 
+  mod_env = (__funcarg128 = FUNCCALL(SETUP_XfOrM11(_), scheme_intern_symbol ("SchemeMidi" ) ), FUNCCALL_AGAIN(scheme_primitive_module (__funcarg128 , env ) )) ; 
   FUNCCALL_EMPTY(scheme_finish_primitive_module (mod_env ) ); 
   RET_VALUE_START (scheme_void ) RET_VALUE_END ; 
 # undef BLOCK_SETUP
@@ -3199,14 +3223,14 @@ _Bool connect () {
   MIDIPacketList * __funcarg129 = NULLED_OUT ; 
   DECL_RET_SAVE (_Bool ) PREPARE_VAR_STACK_ONCE(1);
   BLOCK_SETUP_TOP((PUSH(end, 0)));
-# define XfOrM11_COUNT (1)
-# define SETUP_XfOrM11(x) SETUP(XfOrM11_COUNT)
+# define XfOrM12_COUNT (1)
+# define SETUP_XfOrM12(x) SETUP(XfOrM12_COUNT)
 # define BLOCK_SETUP(x) BLOCK_SETUP_once(x)
 # define FUNCCALL(s, x) FUNCCALL_once(s, x)
 # define FUNCCALL_EMPTY(x) FUNCCALL_EMPTY_once(x)
 # define FUNCCALL_AGAIN(x) FUNCCALL_AGAIN_once(x)
   end = NULLED_OUT ; 
-  b = FUNCCALL(SETUP_XfOrM11(_), midiInit () ); 
+  b = FUNCCALL(SETUP_XfOrM12(_), midiInit () ); 
   q = FUNCCALL_AGAIN(newQueue () ); 
   end = FUNCCALL_EMPTY(makeQueueEnd () ); 
   (__funcarg129 = FUNCCALL_EMPTY(makeQueueEnd () ), FUNCCALL_EMPTY(enqueue (q , __funcarg129 ) )) ; 
@@ -3222,17 +3246,17 @@ MIDIPacketList * makeQueueEnd () {
   MIDIPacketList * pktlist ; 
   DECL_RET_SAVE (MIDIPacketList * ) PREPARE_VAR_STACK_ONCE(2);
   BLOCK_SETUP_TOP((PUSH(pktlist, 0), PUSH(buffer, 1)));
-# define XfOrM12_COUNT (2)
-# define SETUP_XfOrM12(x) SETUP(XfOrM12_COUNT)
+# define XfOrM13_COUNT (2)
+# define SETUP_XfOrM13(x) SETUP(XfOrM13_COUNT)
 # define BLOCK_SETUP(x) BLOCK_SETUP_once(x)
 # define FUNCCALL(s, x) FUNCCALL_once(s, x)
 # define FUNCCALL_EMPTY(x) FUNCCALL_EMPTY_once(x)
 # define FUNCCALL_AGAIN(x) FUNCCALL_AGAIN_once(x)
   buffer = NULLED_OUT ; 
   pktlist = NULLED_OUT ; 
-  buffer = FUNCCALL(SETUP_XfOrM12(_), malloc (sizeof (Byte ) * 2048 ) ); 
+  buffer = FUNCCALL(SETUP_XfOrM13(_), malloc (sizeof (Byte ) * 2048 ) ); 
   pktlist = (MIDIPacketList * ) buffer ; 
-  FUNCCALL(SETUP_XfOrM12(_), MIDIPacketListInit (pktlist ) ); 
+  FUNCCALL(SETUP_XfOrM13(_), MIDIPacketListInit (pktlist ) ); 
   RET_VALUE_START (pktlist ) RET_VALUE_END ; 
 # undef BLOCK_SETUP
 # undef FUNCCALL
@@ -3254,9 +3278,9 @@ _Bool midiInit () {
   ItemCount nSrcs ; 
   int iSrc ; 
   DECL_RET_SAVE (_Bool ) PREPARE_VAR_STACK(5);
-  BLOCK_SETUP_TOP((PUSH(inPort, 0), PUSH(portName, 1), PUSH(client, 2)));
-# define XfOrM15_COUNT (3)
-# define SETUP_XfOrM15(x) SETUP(XfOrM15_COUNT)
+  BLOCK_SETUP_TOP((PUSH(portName, 0), PUSH(client, 1), PUSH(inPort, 2)));
+# define XfOrM16_COUNT (3)
+# define SETUP_XfOrM16(x) SETUP(XfOrM16_COUNT)
 # define BLOCK_SETUP(x) BLOCK_SETUP_each(x)
 # define FUNCCALL(s, x) FUNCCALL_each(s, x)
 # define FUNCCALL_EMPTY(x) FUNCCALL_EMPTY_each(x)
@@ -3264,23 +3288,23 @@ _Bool midiInit () {
   inPort = NULLED_OUT ; 
   client = NULLED_OUT ; 
   portName = NULLED_OUT ; 
-  inPort = (MIDIPortRef * ) FUNCCALL(SETUP_XfOrM15(_), malloc (sizeof (MIDIPortRef ) ) ); 
-  client = (MIDIClientRef * ) FUNCCALL(SETUP_XfOrM15(_), malloc (sizeof (MIDIClientRef ) ) ); 
-  nSrcs = FUNCCALL(SETUP_XfOrM15(_), MIDIGetNumberOfSources () ); 
+  inPort = (MIDIPortRef * ) FUNCCALL(SETUP_XfOrM16(_), malloc (sizeof (MIDIPortRef ) ) ); 
+  client = (MIDIClientRef * ) FUNCCALL(SETUP_XfOrM16(_), malloc (sizeof (MIDIClientRef ) ) ); 
+  nSrcs = FUNCCALL(SETUP_XfOrM16(_), MIDIGetNumberOfSources () ); 
   portName = FUNCCALL_AGAIN(CFStringCreateWithCString (((void * ) 0 ) , "my port" , kCFStringEncodingMacRoman ) ); 
   FUNCCALL_AGAIN(MIDIClientCreate (portName , ((void * ) 0 ) , ((void * ) 0 ) , client ) ); 
   FUNCCALL_AGAIN(MIDIInputPortCreate (* client , portName , (MIDIReadProc ) schemeMidiReadProc , client , inPort ) ); 
   for (iSrc = 0 ; iSrc < nSrcs ; ++ iSrc ) {
     MIDIEndpointRef src ; 
     void * srcConnRefCon ; 
-    BLOCK_SETUP((PUSH(src, 0+XfOrM15_COUNT), PUSH(srcConnRefCon, 1+XfOrM15_COUNT)));
-#   define XfOrM17_COUNT (2+XfOrM15_COUNT)
-#   define SETUP_XfOrM17(x) SETUP(XfOrM17_COUNT)
+    BLOCK_SETUP((PUSH(src, 0+XfOrM16_COUNT), PUSH(srcConnRefCon, 1+XfOrM16_COUNT)));
+#   define XfOrM18_COUNT (2+XfOrM16_COUNT)
+#   define SETUP_XfOrM18(x) SETUP(XfOrM18_COUNT)
     src = NULLED_OUT ; 
     srcConnRefCon = NULLED_OUT ; 
-    src = FUNCCALL(SETUP_XfOrM17(_), MIDIGetSource (iSrc ) ); 
+    src = FUNCCALL(SETUP_XfOrM18(_), MIDIGetSource (iSrc ) ); 
     srcConnRefCon = src ; 
-    FUNCCALL(SETUP_XfOrM17(_), MIDIPortConnectSource (* inPort , src , srcConnRefCon ) ); 
+    FUNCCALL(SETUP_XfOrM18(_), MIDIPortConnectSource (* inPort , src , srcConnRefCon ) ); 
   }
   RET_VALUE_START (nSrcs > 0 ) RET_VALUE_END ; 
 # undef BLOCK_SETUP

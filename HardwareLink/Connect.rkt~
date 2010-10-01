@@ -1,18 +1,22 @@
 #lang Racket
-(require "SchemeMidi.ss" 
+(require "SchemeMidi.rkt" 
          scheme/foreign)
 (unsafe!)
 
 #|For Mac OS X and Linux |#
-(define midi-scheme-lib (ffi-lib (build-path "/Users/justinphillips/Documents/School/Thesis/Music/src/HardwareLink/reConnect/compiled/native/i386-macosx/3m/SchemeMidi_ss")))
+(define midi-scheme-lib (ffi-lib (build-path "/Users/justinphillips/Documents/School/Thesis/Music/src/HardwareLink/compiled/native/i386-macosx/3m/SchemeMidi_ss")))
 
-(define connect
+(define connect_
   (get-ffi-obj 'connect midi-scheme-lib
                (_fun -> _bool)))
 
 (define get-midi
   (get-ffi-obj 'getMidi midi-scheme-lib
                (_fun -> _pointer)))
+
+(define get-q-size
+  (get-ffi-obj 'getQSize midi-scheme-lib
+               (_fun -> _int)))
 
 (define get-queue-for-waiting
   (get-ffi-obj 'getQueueForWaiting midi-scheme-lib
@@ -28,18 +32,26 @@
   (midi-packet-unpacker (get-midi)))
 
 ;this returns the right stuff now, but what i want is to have the result of sync be the actual midi packet. go change the c code to get that to happen. the return statement i want is unreachable due to my current return
-(define midi-sync
+#;(define midi-sync
   (lambda () (begin
                (sync (get-queue-for-waiting))
                (read-midi-packet))))
 
-;(define midi-event (get-queue-for-waiting))
+#;(begin
+    (sync (midi-event-to-be-synced))
+    (printf "~a~n" (get-q-size))
+    (read-midi-packet))
+
+(define midi-event-to-be-synced get-queue-for-waiting)
+
+(define (connect)
+  (if (connect_)
+      "Connected!"
+      "Not Connected! Is a MIDI source connected to your computer? Email jjustinphillipss@gmail.com for assistance."))
 
 (provide connect
-         get-queue-for-waiting
-         ;midi-event
-         read-midi-packet
-         midi-sync)
+         midi-event-to-be-synced
+         read-midi-packet)
 
 
 ;#|These two things, while they may be appropriate for my keyboard, do not belong here TODO|#
