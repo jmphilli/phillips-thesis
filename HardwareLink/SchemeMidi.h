@@ -15,13 +15,15 @@ int getQSize();
 
 Queue* newQueue();
 
+void freeQueue();
+
 bool isEmpty(Queue* q);
 
-void logger(UInt64 num);
+void logger(int num);
 
 void enqueue(Queue* q, MIDIPacketList* p);
 
-MIDIPacket* dequeue(Queue* q);
+MIDIPacket* dequeue();
 
 void nullOp(Scheme_Object* data, void* fds);
 void nullOpA(Scheme_Object* data);
@@ -64,5 +66,3 @@ void schemeMidiReadProc(const MIDIPacketList *pktlist, void *readProcRefCon, voi
 int readyProc(Scheme_Object* data);
 
 void initNewType();
-
-MIDIPacket* getMidi();

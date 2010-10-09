@@ -10,11 +10,11 @@
   (get-ffi-obj 'connect midi-scheme-lib
                (_fun -> _bool)))
 
-(define get-midi
-  (get-ffi-obj 'getMidi midi-scheme-lib
+(define dequeue
+  (get-ffi-obj 'dequeue midi-scheme-lib
                (_fun -> _pointer)))
 
-#;(define get-q-size
+(define get-q-size
   (get-ffi-obj 'getQSize midi-scheme-lib
                (_fun -> _int)))
 
@@ -24,7 +24,7 @@
 
 (define (midi-packet-unpacker scheme-midi-ptr)
   (cond [scheme-midi-ptr 
-          (let ([data (ptr-ref scheme-midi-ptr (_list-struct (_list-struct _byte _byte _byte _byte _byte _byte _byte _byte);_uint64
+          (let ([data (ptr-ref scheme-midi-ptr (_list-struct _uint64
                                                              _uint16
                                                              (_list-struct _byte _byte _byte _byte _byte _byte _byte _byte
                                                                            _byte _byte _byte _byte _byte _byte _byte _byte
@@ -61,7 +61,12 @@
             (filter data))]))
 
 (define (read-midi-packet)
-  (midi-packet-unpacker (get-midi)))
+  (let ([midi (dequeue)])
+    (cond [midi (let ([val (midi-packet-unpacker midi)])
+                  (cond [(not (or (equal? (first (third val)) 254) (equal? (first (third val)) 248))) (printf "~a ~a ~a ~n" (first (third val)) (second (third val)) (third (third val)))]
+                        [else 'boo])
+                  #;(begin (cond [(not (or (equal? (first (third val)) 254) (equal? (first (third val)) 248))) (printf "~a ~a ~a ~n" (first (third val)) (second (third val)) (third (third val)))])
+                         val))])))
 
 (define midi-event-to-be-synced get-queue-for-waiting)
 
@@ -72,34 +77,36 @@
 
 ;assuming that the tempo is 120 and 4/4 time sig (defaults) then convert the detla time that my keyboard puts out into 'real' delta time
 (define (filter data)
-  (cond 
-    [(not (or
-               (equal? #xF8 (first (third data)))
-               (equal? #xFE (first (third data))))) (fix-time data)]))
+      (fix-time data))
 
-(define (fix-time data) data)
-  ;(cons (quotient (quotient (delta-time-fix (first data)) 12) 1000000) (rest data)))
+(define (fix-time data) 
+  (cons (delta-time-fix (first data)) (rest data)))
 
-(define saved-time -1)
+(define saved-time 'a)
 
 (define (delta-time-fix time)
   (match saved-time
-    [-1 (begin
-          (set! saved-time time)
+    ['a (begin
+          (set! saved-time (quotient time 100))
           0)]
-    [_ (let ([val (- time saved-time)])
+    [_ (let ([val (- (quotient time 100) saved-time)])
          (begin
-           (set! saved-time time)
-           (printf "~a val here ~n" val)
+           (set! saved-time (quotient time 100))
+           ;(printf "timeval ~a~n" (quotient time 100))
            val))]))
 
 (provide connect
          midi-event-to-be-synced
          read-midi-packet
+         get-q-size
          filter)
 
-;163140453741712 -- 12:40:17:526
-;13:16:09:292 -- 52 210 234 14 85 150 0 0 
+(define (go)
+  (do ([val (get-q-size)])
+    (#f)
+    (cond [(> (get-q-size) 0)
+           (read-midi-packet)])))
+
 #|
 My device uses SMPTE Time - 25 frames * 40 subframes. BPM from device is 120. Sends a MIDI clock signal 2 times every second.
 So the time coming across is milliseconds at the end 

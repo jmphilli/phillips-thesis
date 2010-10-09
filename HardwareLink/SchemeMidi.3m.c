@@ -546,6 +546,7 @@ typedef struct {
   long long rem ; 
 }
 lldiv_t ; 
+void free (void * ) ; 
 void * malloc (size_t ) ; 
 void _Exit (int ) __attribute__ ((__noreturn__ ) ) ; 
 int getsubopt (char * * , char * const * , char * * ) ; 
@@ -3106,12 +3107,11 @@ typedef struct {
 Queue ; 
 int getQSize () ; 
 Queue * newQueue () ; 
+void freeQueue () ; 
 _Bool isEmpty (Queue * q ) ; 
-void logger (UInt64 num ) ; 
+void logger (int num ) ; 
 void enqueue (Queue * q , MIDIPacketList * p ) ; 
-MIDIPacket * dequeue (Queue * q ) ; 
-void nullOp (Scheme_Object * data , void * fds ) ; 
-void nullOpA (Scheme_Object * data ) ; 
+MIDIPacket * dequeue () ; 
 MIDIPacketList * makeQueueEnd () ; 
 Scheme_Object * getQueueForWaiting () ; 
 Queue * q ; 
@@ -3123,12 +3123,11 @@ _Bool midiInit () ;
 void schemeMidiReadProc (const MIDIPacketList * pktlist , void * readProcRefCon , void * srcConnRefCon ) ; 
 int readyProc (Scheme_Object * data ) ; 
 void initNewType () ; 
-MIDIPacket * getMidi () ; 
 Queue * newQueue () {
   Queue * q ; 
   MIDIPacket * * pktlist ; 
   DECL_RET_SAVE (Queue * ) PREPARE_VAR_STACK_ONCE(2);
-  BLOCK_SETUP_TOP((PUSH(pktlist, 0), PUSH(q, 1)));
+  BLOCK_SETUP_TOP((PUSH(q, 0), PUSH(pktlist, 1)));
 # define XfOrM1_COUNT (2)
 # define SETUP_XfOrM1(x) SETUP(XfOrM1_COUNT)
 # define BLOCK_SETUP(x) BLOCK_SETUP_once(x)
@@ -3138,7 +3137,7 @@ Queue * newQueue () {
   q = NULLED_OUT ; 
   pktlist = NULLED_OUT ; 
   q = (Queue * ) FUNCCALL(SETUP_XfOrM1(_), malloc (sizeof (Queue ) ) ); 
-  pktlist = (MIDIPacket * * ) FUNCCALL(SETUP_XfOrM1(_), malloc (sizeof (MIDIPacket * ) * 10000 ) ); 
+  pktlist = (MIDIPacket * * ) FUNCCALL(SETUP_XfOrM1(_), malloc (10000 * sizeof (MIDIPacket * ) ) ); 
   q -> size = 0 ; 
   q -> pkts = pktlist ; 
   RET_VALUE_START (q ) RET_VALUE_END ; 
@@ -3146,6 +3145,11 @@ Queue * newQueue () {
 # undef FUNCCALL
 # undef FUNCCALL_EMPTY
 # undef FUNCCALL_AGAIN
+}
+void freeQueue () {
+  /* No conversion */
+  free (q -> pkts ) ; 
+  free (q ) ; 
 }
 _Bool isEmpty (Queue * q ) {
   /* No conversion */
@@ -3155,18 +3159,18 @@ int getQSize () {
   /* No conversion */
   return q -> size ; 
 }
-void logger (UInt64 num ) {
+void logger (int num ) {
   FILE * fptr ; 
   PREPARE_VAR_STACK_ONCE(1);
   BLOCK_SETUP_TOP((PUSH(fptr, 0)));
-# define XfOrM4_COUNT (1)
-# define SETUP_XfOrM4(x) SETUP(XfOrM4_COUNT)
+# define XfOrM5_COUNT (1)
+# define SETUP_XfOrM5(x) SETUP(XfOrM5_COUNT)
 # define BLOCK_SETUP(x) BLOCK_SETUP_once(x)
 # define FUNCCALL(s, x) FUNCCALL_once(s, x)
 # define FUNCCALL_EMPTY(x) FUNCCALL_EMPTY_once(x)
 # define FUNCCALL_AGAIN(x) FUNCCALL_AGAIN_once(x)
   fptr = NULLED_OUT ; 
-  fptr = FUNCCALL(SETUP_XfOrM4(_), fopen ("myFile.output" , "a+" ) ); 
+  fptr = FUNCCALL(SETUP_XfOrM5(_), fopen ("myFile.output" , "a+" ) ); 
   FUNCCALL_AGAIN(fprintf (fptr , "%X\n" , num ) ); 
   FUNCCALL_EMPTY(fclose (fptr ) ); 
   RET_NOTHING_AT_END ; 
@@ -3175,26 +3179,30 @@ void logger (UInt64 num ) {
 # undef FUNCCALL_EMPTY
 # undef FUNCCALL_AGAIN
 }
-void enqueue (Queue * q , MIDIPacketList * p ) {
+void enqueue (Queue * q , MIDIPacketList * packetList ) {
   /* No conversion */
-  MIDIPacket * packet ; 
   int i ; 
-  packet = & p -> packet [0 ] ; 
-  for (i = 0 ; i < p -> numPackets ; i ++ ) {
-    q -> pkts [q -> size ] = packet ; 
-    q -> size ++ ; 
-    packet = ((MIDIPacket * ) & (packet ) -> data [(packet ) -> length ] ) ; 
+  MIDIPacket * packet ; 
+  packet = & packetList -> packet [0 ] ; 
+  for (i = 0 ; (packet != ((void * ) 0 ) && i < packetList -> numPackets ) ; i ++ ) {
+    if (! (packet -> data [0 ] == 254 || packet -> data [0 ] == 248 ) ) {
+      q -> pkts [q -> size ] = packet ; 
+      q -> size ++ ; 
+    }
   }
 }
-MIDIPacket * dequeue (Queue * q ) {
+MIDIPacket * dequeue () {
   /* No conversion */
   MIDIPacket * packet ; 
   int i ; 
-  packet = q -> pkts [0 ] ; 
-  for (i = 0 ; i < q -> size ; i ++ ) {
-    q -> pkts [i ] = q -> pkts [i + 1 ] ; 
+  packet = ((void * ) 0 ) ; 
+  if (q -> size > 0 ) {
+    packet = q -> pkts [0 ] ; 
+    for (i = 0 ; i < q -> size - 1 ; i ++ ) {
+      q -> pkts [i ] = q -> pkts [i + 1 ] ; 
+    }
+    q -> size -- ; 
   }
-  q -> size -- ; 
   return packet ; 
 }
 Scheme_Object * scheme_initialize (Scheme_Env * env ) {
@@ -3202,14 +3210,14 @@ Scheme_Object * scheme_initialize (Scheme_Env * env ) {
   Scheme_Object * __funcarg128 = NULLED_OUT ; 
   DECL_RET_SAVE (Scheme_Object * ) PREPARE_VAR_STACK_ONCE(2);
   BLOCK_SETUP_TOP((PUSH(mod_env, 0), PUSH(env, 1)));
-# define XfOrM11_COUNT (2)
-# define SETUP_XfOrM11(x) SETUP(XfOrM11_COUNT)
+# define XfOrM15_COUNT (2)
+# define SETUP_XfOrM15(x) SETUP(XfOrM15_COUNT)
 # define BLOCK_SETUP(x) BLOCK_SETUP_once(x)
 # define FUNCCALL(s, x) FUNCCALL_once(s, x)
 # define FUNCCALL_EMPTY(x) FUNCCALL_EMPTY_once(x)
 # define FUNCCALL_AGAIN(x) FUNCCALL_AGAIN_once(x)
   mod_env = NULLED_OUT ; 
-  mod_env = (__funcarg128 = FUNCCALL(SETUP_XfOrM11(_), scheme_intern_symbol ("SchemeMidi" ) ), FUNCCALL_AGAIN(scheme_primitive_module (__funcarg128 , env ) )) ; 
+  mod_env = (__funcarg128 = FUNCCALL(SETUP_XfOrM15(_), scheme_intern_symbol ("SchemeMidi" ) ), FUNCCALL_AGAIN(scheme_primitive_module (__funcarg128 , env ) )) ; 
   FUNCCALL_EMPTY(scheme_finish_primitive_module (mod_env ) ); 
   RET_VALUE_START (scheme_void ) RET_VALUE_END ; 
 # undef BLOCK_SETUP
@@ -3218,45 +3226,29 @@ Scheme_Object * scheme_initialize (Scheme_Env * env ) {
 # undef FUNCCALL_AGAIN
 }
 _Bool connect () {
+  /* No conversion */
   _Bool b ; 
-  MIDIPacketList * end ; 
-  MIDIPacketList * __funcarg129 = NULLED_OUT ; 
-  DECL_RET_SAVE (_Bool ) PREPARE_VAR_STACK_ONCE(1);
-  BLOCK_SETUP_TOP((PUSH(end, 0)));
-# define XfOrM12_COUNT (1)
-# define SETUP_XfOrM12(x) SETUP(XfOrM12_COUNT)
-# define BLOCK_SETUP(x) BLOCK_SETUP_once(x)
-# define FUNCCALL(s, x) FUNCCALL_once(s, x)
-# define FUNCCALL_EMPTY(x) FUNCCALL_EMPTY_once(x)
-# define FUNCCALL_AGAIN(x) FUNCCALL_AGAIN_once(x)
-  end = NULLED_OUT ; 
-  b = FUNCCALL(SETUP_XfOrM12(_), midiInit () ); 
-  q = FUNCCALL_AGAIN(newQueue () ); 
-  end = FUNCCALL_EMPTY(makeQueueEnd () ); 
-  (__funcarg129 = FUNCCALL_EMPTY(makeQueueEnd () ), FUNCCALL_EMPTY(enqueue (q , __funcarg129 ) )) ; 
-  FUNCCALL_EMPTY(initNewType () ); 
-  RET_VALUE_START (b ) RET_VALUE_END ; 
-# undef BLOCK_SETUP
-# undef FUNCCALL
-# undef FUNCCALL_EMPTY
-# undef FUNCCALL_AGAIN
+  b = midiInit () ; 
+  q = newQueue () ; 
+  initNewType () ; 
+  return b ; 
 }
 MIDIPacketList * makeQueueEnd () {
   Byte * buffer ; 
   MIDIPacketList * pktlist ; 
   DECL_RET_SAVE (MIDIPacketList * ) PREPARE_VAR_STACK_ONCE(2);
   BLOCK_SETUP_TOP((PUSH(pktlist, 0), PUSH(buffer, 1)));
-# define XfOrM13_COUNT (2)
-# define SETUP_XfOrM13(x) SETUP(XfOrM13_COUNT)
+# define XfOrM17_COUNT (2)
+# define SETUP_XfOrM17(x) SETUP(XfOrM17_COUNT)
 # define BLOCK_SETUP(x) BLOCK_SETUP_once(x)
 # define FUNCCALL(s, x) FUNCCALL_once(s, x)
 # define FUNCCALL_EMPTY(x) FUNCCALL_EMPTY_once(x)
 # define FUNCCALL_AGAIN(x) FUNCCALL_AGAIN_once(x)
   buffer = NULLED_OUT ; 
   pktlist = NULLED_OUT ; 
-  buffer = FUNCCALL(SETUP_XfOrM13(_), malloc (sizeof (Byte ) * 2048 ) ); 
+  buffer = FUNCCALL(SETUP_XfOrM17(_), malloc (sizeof (Byte ) * 2048 ) ); 
   pktlist = (MIDIPacketList * ) buffer ; 
-  FUNCCALL(SETUP_XfOrM13(_), MIDIPacketListInit (pktlist ) ); 
+  FUNCCALL(SETUP_XfOrM17(_), MIDIPacketListInit (pktlist ) ); 
   RET_VALUE_START (pktlist ) RET_VALUE_END ; 
 # undef BLOCK_SETUP
 # undef FUNCCALL
@@ -3264,8 +3256,20 @@ MIDIPacketList * makeQueueEnd () {
 # undef FUNCCALL_AGAIN
 }
 Scheme_Object * scheme_reload (Scheme_Env * env ) {
-  /* No conversion */
-  return scheme_initialize (env ) ; 
+  PREPARE_VAR_STACK_ONCE(1);
+  BLOCK_SETUP_TOP((PUSH(env, 0)));
+# define XfOrM18_COUNT (1)
+# define SETUP_XfOrM18(x) SETUP(XfOrM18_COUNT)
+# define BLOCK_SETUP(x) BLOCK_SETUP_once(x)
+# define FUNCCALL(s, x) FUNCCALL_once(s, x)
+# define FUNCCALL_EMPTY(x) FUNCCALL_EMPTY_once(x)
+# define FUNCCALL_AGAIN(x) FUNCCALL_AGAIN_once(x)
+  FUNCCALL(SETUP_XfOrM18(_), freeQueue () ); 
+  RET_VALUE_EMPTY_START (FUNCCALL_EMPTY(scheme_initialize (env ) )) RET_VALUE_EMPTY_END ; 
+# undef BLOCK_SETUP
+# undef FUNCCALL
+# undef FUNCCALL_EMPTY
+# undef FUNCCALL_AGAIN
 }
 Scheme_Object * scheme_module_name () {
   /* No conversion */
@@ -3279,8 +3283,8 @@ _Bool midiInit () {
   int iSrc ; 
   DECL_RET_SAVE (_Bool ) PREPARE_VAR_STACK(5);
   BLOCK_SETUP_TOP((PUSH(portName, 0), PUSH(client, 1), PUSH(inPort, 2)));
-# define XfOrM16_COUNT (3)
-# define SETUP_XfOrM16(x) SETUP(XfOrM16_COUNT)
+# define XfOrM20_COUNT (3)
+# define SETUP_XfOrM20(x) SETUP(XfOrM20_COUNT)
 # define BLOCK_SETUP(x) BLOCK_SETUP_each(x)
 # define FUNCCALL(s, x) FUNCCALL_each(s, x)
 # define FUNCCALL_EMPTY(x) FUNCCALL_EMPTY_each(x)
@@ -3288,23 +3292,23 @@ _Bool midiInit () {
   inPort = NULLED_OUT ; 
   client = NULLED_OUT ; 
   portName = NULLED_OUT ; 
-  inPort = (MIDIPortRef * ) FUNCCALL(SETUP_XfOrM16(_), malloc (sizeof (MIDIPortRef ) ) ); 
-  client = (MIDIClientRef * ) FUNCCALL(SETUP_XfOrM16(_), malloc (sizeof (MIDIClientRef ) ) ); 
-  nSrcs = FUNCCALL(SETUP_XfOrM16(_), MIDIGetNumberOfSources () ); 
+  inPort = (MIDIPortRef * ) FUNCCALL(SETUP_XfOrM20(_), malloc (sizeof (MIDIPortRef ) ) ); 
+  client = (MIDIClientRef * ) FUNCCALL(SETUP_XfOrM20(_), malloc (sizeof (MIDIClientRef ) ) ); 
+  nSrcs = FUNCCALL(SETUP_XfOrM20(_), MIDIGetNumberOfSources () ); 
   portName = FUNCCALL_AGAIN(CFStringCreateWithCString (((void * ) 0 ) , "my port" , kCFStringEncodingMacRoman ) ); 
   FUNCCALL_AGAIN(MIDIClientCreate (portName , ((void * ) 0 ) , ((void * ) 0 ) , client ) ); 
   FUNCCALL_AGAIN(MIDIInputPortCreate (* client , portName , (MIDIReadProc ) schemeMidiReadProc , client , inPort ) ); 
   for (iSrc = 0 ; iSrc < nSrcs ; ++ iSrc ) {
     MIDIEndpointRef src ; 
     void * srcConnRefCon ; 
-    BLOCK_SETUP((PUSH(src, 0+XfOrM16_COUNT), PUSH(srcConnRefCon, 1+XfOrM16_COUNT)));
-#   define XfOrM18_COUNT (2+XfOrM16_COUNT)
-#   define SETUP_XfOrM18(x) SETUP(XfOrM18_COUNT)
+    BLOCK_SETUP((PUSH(src, 0+XfOrM20_COUNT), PUSH(srcConnRefCon, 1+XfOrM20_COUNT)));
+#   define XfOrM22_COUNT (2+XfOrM20_COUNT)
+#   define SETUP_XfOrM22(x) SETUP(XfOrM22_COUNT)
     src = NULLED_OUT ; 
     srcConnRefCon = NULLED_OUT ; 
-    src = FUNCCALL(SETUP_XfOrM18(_), MIDIGetSource (iSrc ) ); 
+    src = FUNCCALL(SETUP_XfOrM22(_), MIDIGetSource (iSrc ) ); 
     srcConnRefCon = src ; 
-    FUNCCALL(SETUP_XfOrM18(_), MIDIPortConnectSource (* inPort , src , srcConnRefCon ) ); 
+    FUNCCALL(SETUP_XfOrM22(_), MIDIPortConnectSource (* inPort , src , srcConnRefCon ) ); 
   }
   RET_VALUE_START (nSrcs > 0 ) RET_VALUE_END ; 
 # undef BLOCK_SETUP
@@ -3320,19 +3324,35 @@ void initNewType () {
   scheme_add_evt (type , (Scheme_Ready_Fun ) readyProc , ((void * ) 0 ) , ((void * ) 0 ) , 0 ) ; 
   return ; 
 }
-void nullOp (Scheme_Object * data , void * fds ) {
-  /* No conversion */
-}
-void nullOpA (Scheme_Object * data ) {
-  /* No conversion */
-}
 Scheme_Object * getQueueForWaiting () {
   /* No conversion */
   return (Scheme_Object * ) q ; 
 }
-void schemeMidiReadProc (const MIDIPacketList * pktlist , void * readProcRefCon , void * srcConnRefCon ) {
-  /* No conversion */
-  enqueue (q , pktlist ) ; 
+void schemeMidiReadProc (const MIDIPacketList * packetList , void * readProcRefCon , void * srcConnRefCon ) {
+  int i ; 
+  MIDIPacket * packet ; 
+  PREPARE_VAR_STACK_ONCE(2);
+  BLOCK_SETUP_TOP((PUSH(packetList, 0), PUSH(packet, 1)));
+# define XfOrM25_COUNT (2)
+# define SETUP_XfOrM25(x) SETUP(XfOrM25_COUNT)
+# define BLOCK_SETUP(x) BLOCK_SETUP_once(x)
+# define FUNCCALL(s, x) FUNCCALL_once(s, x)
+# define FUNCCALL_EMPTY(x) FUNCCALL_EMPTY_once(x)
+# define FUNCCALL_AGAIN(x) FUNCCALL_AGAIN_once(x)
+  packet = NULLED_OUT ; 
+  FUNCCALL(SETUP_XfOrM25(_), malloc (sizeof (MIDIPacket ) ) ); 
+  packet = & packetList -> packet [0 ] ; 
+  for (i = 0 ; (packet != ((void * ) 0 ) && i < packetList -> numPackets ) ; i ++ ) {
+    if (! (packet -> data [0 ] == 254 || packet -> data [0 ] == 248 ) ) {
+      q -> pkts [q -> size ] = packet ; 
+      q -> size ++ ; 
+    }
+  }
+  RET_NOTHING_AT_END ; 
+# undef BLOCK_SETUP
+# undef FUNCCALL
+# undef FUNCCALL_EMPTY
+# undef FUNCCALL_AGAIN
 }
 int readyProc (Scheme_Object * data ) {
   /* No conversion */
@@ -3340,8 +3360,4 @@ int readyProc (Scheme_Object * data ) {
     return 0 ; 
   }
   return 1 ; 
-}
-MIDIPacket * getMidi () {
-  /* No conversion */
-  return dequeue (q ) ; 
 }

@@ -54,7 +54,12 @@
 ;stream is a list
 (define (parse-stream stream tempo)
   (if (<= 1 (length (unbox midi-lst)))
-      (let* ([pairs-and-unmatched (pair-notes (append (unbox midi-lst) stream))]
+      (let* ([pairs-and-unmatched (let ([vals (unbox midi-lst)])
+                                    (if (void? vals)
+                                        (pair-notes stream)
+                                        (if (void? stream)
+                                            (pair-notes vals)
+                                            (pair-notes (append vals stream)))))]
              [pairs (all-but-last pairs-and-unmatched)]
              #;[unmatched (set-box! midi-lst (map (lambda (x) (cond [(midi-on? (rest x)) x])) (last pairs-and-unmatched)))]
              [unmatched (set-box! midi-lst (last pairs-and-unmatched))])
@@ -132,7 +137,9 @@
 (define (find-time-values midi-lst unmatched-lst)
   (if (empty? midi-lst)
       (list unmatched-lst)
-      (if (midi-on? (last (first midi-lst)))
+      (if (void? (first midi-lst))
+          (find-time-values (rest midi-lst) unmatched-lst)
+          (if (midi-on? (last (first midi-lst)))
           (let ([time-value? (find-time-value (first midi-lst) (rest midi-lst))])
             (if (not (equal? #f time-value?))
                 (cons (list (first (first midi-lst)) time-value?) (find-time-values (rest midi-lst) unmatched-lst))
@@ -140,7 +147,7 @@
           (if (midi-off? (first (first midi-lst)))
               (find-time-values (rest midi-lst) unmatched-lst)
               ;i can't interprent // i don't care about this input
-              (find-time-values (rest midi-lst) (append unmatched-lst (list (first midi-lst))))))))
+              (find-time-values (rest midi-lst) (append unmatched-lst (list (first midi-lst)))))))))
 
 (define (find-time-value el lst)
   (if (empty? lst)

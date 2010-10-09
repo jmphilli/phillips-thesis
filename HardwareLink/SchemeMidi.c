@@ -5,12 +5,17 @@ Queue* newQueue(){
   MIDIPacket** pktlist;
 
   q = (Queue*)malloc(sizeof(Queue));
-  pktlist = (MIDIPacket**)malloc(sizeof(MIDIPacket*) * MAX_QUEUE_SIZE);
-
+  pktlist = (MIDIPacket**)malloc(MAX_QUEUE_SIZE * sizeof(MIDIPacket*));
+  
   q->size = 0;
   q->pkts = pktlist;
 
   return q;
+}
+
+void freeQueue(){
+  free(q->pkts);
+  free(q);
 }
 
 bool isEmpty(Queue* q){
@@ -21,41 +26,57 @@ int getQSize(){
   return q->size;
 }
 
-void logger(UInt64 num){
+void logger(int num){
   FILE* fptr;
   fptr = fopen("myFile.output", "a+");
   fprintf(fptr, "%X\n", num);
   fclose(fptr);
 }
 
-void enqueue(Queue* q, MIDIPacketList* p){
-  MIDIPacket* packet;
-  /*UInt64 num;*/
+void enqueue(Queue* q, MIDIPacketList* packetList){
   int i;
+  MIDIPacket* packet;
+  //void* tmp;
 
-  packet = &p->packet[0];
-  for(i = 0; i < p->numPackets; i++){
-    q->pkts[q->size] = packet;
-    q->size++;
-    packet = MIDIPacketNext(packet);
+  packet = &packetList->packet[0];
+  //tmp = malloc(sizeof(MIDIPacket));
+
+  for(i = 0; (packet != NULL && i < packetList->numPackets); i++){
+    if (!(packet->data[0] == 254 || packet->data[0] == 248)) {
+      //memcpy(tmp, packet, sizeof(MIDIPacket));
+      q->pkts[q->size] = packet;
+      q->size++;
+    }
   }
-
-  /*num = (*(MIDIPacket*)&p->packet[0]).timeStamp;
-
-  logger(num);*/
 }
 
-MIDIPacket* dequeue(Queue* q){
+MIDIPacket* dequeue(){
   MIDIPacket* packet;
   int i;
 
-  packet = q->pkts[0];
+  packet = NULL;
 
-  for(i = 0; i < q->size; i++){
-    q->pkts[i] = q->pkts[i+1];
+  if(q->size > 0){
+    //packet = malloc(sizeof(MIDIPacket));
+    //memcpy(packet, q->pkts[0], sizeof(MIDIPacket));
+    packet = q->pkts[0];
+
+    for(i = 0; i < q->size - 1; i++){
+      q->pkts[i] = q->pkts[i+1];
+    }
+
+    q->size--;
   }
 
-  q->size--;
+
+  /* I REALLY don't like this, but I'm writing in C using Apple's API and 
+    the extension bit for Racket, so I'm limited with what I can do.
+    Anytime I allocated memory in the enqueue func it broke everything.
+    Needless to say, this is a work around to keep the data I don't want out
+  if(packet->data[0] == 248 || packet->data[0] == 254){
+    packet = NULL;
+  }
+  */
 
   return packet;
 }
@@ -71,12 +92,12 @@ Scheme_Object* scheme_initialize(Scheme_Env *env){
 
 bool connect(){
   bool b;
-  MIDIPacketList* end;
+//  MIDIPacketList* end;
   b = midiInit();
   q = newQueue();
 
-  end = makeQueueEnd();
-  enqueue(q, makeQueueEnd());
+//  end = makeQueueEnd();
+//  enqueue(q, makeQueueEnd());
 
   initNewType();
   return b;
@@ -94,6 +115,7 @@ MIDIPacketList* makeQueueEnd(){
 }
 
 Scheme_Object* scheme_reload(Scheme_Env *env){
+  freeQueue();
   return scheme_initialize(env);
 }
 
@@ -160,29 +182,29 @@ void initNewType(){
   return;
 }
 
-void nullOp(Scheme_Object* data, void* fds){
-
-}
-
-void nullOpA(Scheme_Object* data){
-}
-
 Scheme_Object* getQueueForWaiting(){
   return (Scheme_Object*)q;
 }
 
-void schemeMidiReadProc(const MIDIPacketList *pktlist, void *readProcRefCon, void *srcConnRefCon){
-  enqueue(q, pktlist);
-  //scheme_signal_received();
-}
+void schemeMidiReadProc(const MIDIPacketList *packetList, void *readProcRefCon, void *srcConnRefCon){
+  int i;
+  MIDIPacket* packet;
+  //void* tmp;
 
-/*MIDIPacket* readyProc(Scheme_Object* data){
-  if(isEmpty((Queue*)data)){
-    return NULL;
+  malloc(sizeof(MIDIPacket));
+  packet = &packetList->packet[0];
+  //tmp = malloc(sizeof(MIDIPacket));
+
+  for(i = 0; (packet != NULL && i < packetList->numPackets); i++){
+    if (!(packet->data[0] == 254 || packet->data[0] == 248)) {
+      //memcpy(tmp, packet, sizeof(MIDIPacket));
+      q->pkts[q->size] = packet;
+      q->size++;
+    }
   }
 
-  return 1;
-}*/
+  //scheme_signal_received();
+}
 
 int readyProc(Scheme_Object* data){
   if(isEmpty((Queue*)data)){
@@ -191,8 +213,3 @@ int readyProc(Scheme_Object* data){
 
   return true;
 }
-
-MIDIPacket* getMidi(){
-  return dequeue(q);
-}
-
