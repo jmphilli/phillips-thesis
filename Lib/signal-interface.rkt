@@ -31,7 +31,7 @@ Write a function that decides which of the musics is more musical at any given t
     (set! base-value b-v)
     (go)))
 
-(define (add-to-signal-queue time new-value)
+(define (add-to-signal time new-value)
   (set-box! q (add-to-signal-queue_ time new-value (unbox q))))
 #|****************************************************************************************************************************************************************************************************|#
 
@@ -47,9 +47,12 @@ Write a function that decides which of the musics is more musical at any given t
 
 (define (go)
   (map-e (lambda (x)
-           (begin
-             (set-cell! my-sig (foldr my-func base-value (find-all-values-at-time x (unbox q))))
-             (clean-out-queue))) (changes clock)))
+           (let ([current-vals (find-all-values-at-time x (unbox q))])
+             (if (empty? current-vals)
+                 (set-cell! my-sig base-value)
+                 (set-cell! my-sig (my-func current-vals)))
+             (clean-out-queue))
+             #;(set-cell! my-sig (foldr my-func base-value (find-all-values-at-time x (unbox q))))) (changes clock)))
 
 (define (clean-out-queue)
   (set-box! q (clean-out-queue_ (unbox q))))
@@ -62,9 +65,9 @@ Write a function that decides which of the musics is more musical at any given t
           queue)))
 
 (define (find-all-values-at-time time queue)
-  (if (or (empty? queue) (< time (car (first queue))))
+  (if (or (empty? queue) #;(< time (car (first queue))))
       '()
-      (if (equal? time (car (first queue)))
+      (if (<= (car (first queue)) time)
           (cons (cdr (first queue)) (find-all-values-at-time time (rest queue)))
           (find-all-values-at-time time (rest queue)))))
 #|****************************************************************************************************************************************************************************************************|#
@@ -87,4 +90,4 @@ Write a function that decides which of the musics is more musical at any given t
 (init-sig my-sig max 0)
 ;32451|#
 #|****************************************************************************************************************************************************************************************************|#
-(provide init-sig add-to-signal-queue)
+(provide init-sig add-to-signal)

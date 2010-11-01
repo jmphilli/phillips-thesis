@@ -9,14 +9,14 @@
 (define midi-lst (box '()))
 (define music-lst (box '()))
 (define starting-time (box 0))
-#;(define absolute-start (box (expt 10 6)))
+(define absolute-start (box (expt 10 6)))
 
 (define (reset)
   (begin
     (set-box! midi-lst '())
     (set-box! music-lst '())
     (set-box! starting-time 0)
-    #;(set-box! absolute-start (expt 10 6))))
+    (set-box! absolute-start (expt 10 6))))
 
 ;HardwareLink/Connect.ss provides a function read-midi-packet which returns the 'delta-time' (although i feel its been bastardized...) and the midi data
 ; ((delta-time-value midi-data-length (midi-command-and-channel note-value velocity)) ...) although i've never seen a list longer than length 1
@@ -24,10 +24,9 @@
 
 ;eventually provide other interfaces other than just midi... but for now ...
 (define (parse stream tempo)
-  (cond [(not (empty? stream)) (let ([val (parse-stream (list (parse-stream_midi stream tempo)) tempo)]) ;remove-voids outside of list inside of parse-stream
+  (cond [(not (empty? stream)) (let ([val (parse-stream (remove-voids (list (parse-stream_midi stream))) tempo)])
                                  (begin
-                                   ;(printf "val~a~n" val)
-                                   ;(printf "starting-time~a~n" (unbox starting-time))
+                                   (printf "~a~n" val)
                                    val))]
         [else '()]))
 
@@ -42,7 +41,16 @@
       (begin
         (set-box! music-lst `(:+: ,(first (rest music))))
         (unbox music-lst))
-      (let ([new-piece (concatenate-musics (unbox music-lst) 0 (rest music) (first music) tempo)])
+      #;(cond [(or (equal? (first music) (unbox absolute-start)) (deviation (first music) (unbox absolute-start) EPSILON))
+             (begin
+               (set-box! music-lst `(:+: ,(first (rest music))))
+               (unbox music-lst))]
+            [(< (unbox absolute-start) (first music)) 
+             (begin
+               (set-box! music-lst (append `(:+: ,(make-rest (unbox absolute-start) (first music) tempo)) (rest music)))
+               (unbox music-lst))]
+            [else (raise 'restCreationError)])
+      (let ([new-piece (concatenate-musics (unbox music-lst) (unbox absolute-start) (rest music) (convert-to-bps (first music) tempo) tempo)])
         (begin
           (set-box! music-lst new-piece)
           (unbox music-lst)))))
@@ -59,25 +67,19 @@
   (if (<= 1 (length (unbox midi-lst)))
       (let* ([pairs-and-unmatched (let ([vals (unbox midi-lst)])
                                     (pair-notes (append vals stream) tempo))]
-             [pairs (begin
-                      ;(printf "result ~a~n" pairs-and-unmatched)
-                      (all-but-last pairs-and-unmatched))]
-             [unmatched (set-box! midi-lst (last pairs-and-unmatched))]) ; remove-voids outside of last inside of set-box!
-        (cond 
-          [(not (empty? pairs)) (music-concat (paired-notes->music pairs tempo) tempo)]
-          [else (unbox music-lst)]))
+             [pairs (all-but-last pairs-and-unmatched)]
+             [unmatched (set-box! midi-lst (remove-voids (last pairs-and-unmatched)))])
+          (cond 
+            [(not (empty? pairs)) (music-concat (paired-notes->music pairs tempo) tempo)]
+            [else (unbox music-lst)]))
       (begin
-        (set-box! midi-lst (append (unbox midi-lst) stream)) ; remove-voids outside of stream inside of append
+        (set-box! midi-lst (append (unbox midi-lst) (remove-voids stream)))
         (unbox music-lst))))
 
 ;paired-lst looks like ((start-time-of-this-note (duration midinote))...)
 (define (paired-notes->music paired-lst tempo)
-  (let ([start-time (first (first paired-lst))]
-        [val (data->music (map (lambda (x) (list (first x) (first (second x)) (skore:pitch-num->pitch (skore:midi-note-on-pitch (second (second x)))))) paired-lst) tempo)])
-    (cons start-time (list val))
-    #;(if (or (equal? 'rest (first val)) (equal? 'note (first val)))
-        (cons start-time (list (data->music (map (lambda (x) (list (first x) (first (second x)) (skore:pitch-num->pitch (skore:midi-note-on-pitch (second (second x)))))) paired-lst) tempo)))
-        (cons start-time (data->music (map (lambda (x) (list (first x) (first (second x)) (skore:pitch-num->pitch (skore:midi-note-on-pitch (second (second x)))))) paired-lst) tempo)))))
+  (let ([start-time (first (first paired-lst))])
+    (cons start-time (list (data->music (map (lambda (x) (list (first x) (first (second x)) (skore:pitch-num->pitch (skore:midi-note-on-pitch (second (second x)))))) paired-lst) tempo)))))
 
 ;list of (abs-time duration note)
 (define (data->music lst tempo)
@@ -86,17 +88,18 @@
       (let ([x (first lst)])
         (if (< (first (second lst)) (+ (first x) (second x)))
             ;there is some simultaneous playback (the notes sound at the same time for some amount of time.)
-            (let ([chord (chord? x (second lst))]
-                  [datum (datum->music x tempo)]
-                  [data (data->music (rest lst) tempo)])
+            (let ([chord (chord? x (second lst))])
               (if chord
-                  (list ':=: datum data)
-                  (list ':=: datum (list ':+: (make-rest x (second lst) tempo) data))))
+                  (list ':=: (datum->music x tempo) (data->music (rest lst) tempo))
+                  ;(begin
+                   ; (printf "apple~n")
+                    (list ':=: (datum->music x tempo) (list ':+: (
+                                                                  x (second lst) tempo) (data->music (rest lst) tempo)))))
             ;sequence
             (let ([musical-rest (rest? x (second lst) tempo)])
               (if musical-rest
-                  (list ':+: (datum->music x tempo) musical-rest (data->music (rest lst) tempo))
-                  (list ':+: (datum->music x tempo) (data->music (rest lst) tempo))))))))
+                    (list ':+: (datum->music x tempo) musical-rest (data->music (rest lst) tempo))
+                    (list ':+: (datum->music x tempo) (data->music (rest lst) tempo))))))))
 
 (define (rest? x y tempo)
   (if (not (deviation (+ (first x) (second x)) (first y) EPSILON))#;(< (+ (first x) (second x)) (first y))
@@ -108,24 +111,27 @@
 
 ;abs-start duration note
 (define (chord? x y)
-  (deviation (- (first x) (first y)) .0625 EPSILON)
-  #;(equal? (first x) (first y)))
+  ;for right now, i'll be strict, but later i might want to use a threshold...
+  (equal? (first x) (first y)))
 
 ;abs-start duration note
 (define (make-rest x y tempo)
   (if (and (list? x) (list? y))
       (if (< (first x) (first y))
           (skore:rest (quantize (convert-to-bps (- (first y) (first x)) tempo)))
-          (raise 'improperRestTime))
+          (begin
+            (printf "~a~n" (- (first y) (first x)))
+            (raise 'improperRestTime)))
       (if (and (number? x) (number? y))
           (cond [(< x y) (skore:rest (quantize (- y x)))]
-                [else (raise 'improperRestTime)])
+                [else (begin
+                        (printf "~a~n" (- y x))
+                        (raise 'improperRestTime))])
           (raise 'unsupported))))
   
 (define (datum->music datum tempo)
   (let ([pitch (third datum)]
-        #;[duration (/ (second datum) tempo)]
-        [duration (second datum)])
+        [duration (/ (second datum) tempo)])
   `(note ,pitch ,duration)))
 
 (define (pair-notes midi-stream tempo)
@@ -136,7 +142,7 @@
   (if (empty? midi-lst)
       (list unmatched-lst)
       (if (midi-on? (last (first midi-lst)))
-          (let ([time-value? (find-time-value (first midi-lst) (rest midi-lst) tempo)]);time-value? is how long the note is
+          (let ([time-value? (find-time-value (first midi-lst) (rest midi-lst) tempo)])
             (if (not (equal? #f time-value?))
                 (cons (list (first (first midi-lst)) time-value?) (find-time-values (rest midi-lst) unmatched-lst tempo))
                 (find-time-values (rest midi-lst) (append unmatched-lst (list (first midi-lst))) tempo)))
@@ -151,8 +157,7 @@
           #f
           '())
       (if (midi-pair? (last el) (last (first lst)))
-          (cond [(< (first el) (first (first lst))) 
-                 (list (convert-to-bps (quantize (- (first (first lst)) (first el))) tempo) (last el))]
+          (cond [(< (first el) (first (first lst))) (list (quantize (convert-to-bps (- (first (first lst)) (first el)) tempo)) (last el))]
                 [else (find-time-value el (rest lst) tempo)])
           (find-time-value el (rest lst) tempo))))
 
@@ -160,27 +165,28 @@
   (cond [(or (<= (abs (- actual expected)) epsilon)) #t]
         [else #f]))
 
-(define EPSILON .125)
+(define EPSILON .1)
 
 (define (convert-to-bps duration tempo)
-    (* duration (/ tempo 60)));; convert bpm to bpseconds then multiply by number of seconds to get # beats
+  (* (/ duration 10000) (/ tempo 60)));; convert bpm to bpseconds then multiply by number of seconds to get # beats
 
-(define (convert-to-spb duration tempo)
-  (* duration (/ 60 tempo)))
-
-(define (quantize time)
+(define (quantize beats)
+  ;(let ([beats (* (/ duration 10000) (/ tempo 60))] 
+   ;    )
   (cond 
-    [(deviation time 1 EPSILON) 1] ;quarter note
-    ;[(deviation time .875 EPSILON) .875]
-    [(deviation time .75 EPSILON) .75]
-    ;[(deviation time .625 EPSILON) .625]
-    [(deviation time .5 EPSILON) .5] ;eigth
-    ;[(deviation time .375 EPSILON) .375]
-    [(deviation time .25 EPSILON) .25] ;sixteenth
-    ;[(deviation time .125 EPSILON) .125] ;thirty-second
-    [else (if (> time .125)
-              (* 2 (quantize (/ time 2)))
-              0)]))
+    [(deviation beats 1 EPSILON) 1] ;quarter note
+    [(deviation beats .875 EPSILON) .875]
+    [(deviation beats .75 EPSILON) .75]
+    [(deviation beats .625 EPSILON) .625]
+    [(deviation beats .5 EPSILON) .5] ;eigth
+    [(deviation beats .375 EPSILON) .375]
+    [(deviation beats .25 EPSILON) .25] ;sixteenth
+    [(deviation beats .125 EPSILON) .125] ;thirty-second
+    [else (if (> beats .125)
+              (* 2 (quantize (/ beats 2)))
+              .0625)]
+    ;[else (* 2 (quantize (/ duration 2) tempo))]
+    ))
 
 (define (midi-off? struct)
   (if (skore:midi-note-on? struct)
@@ -215,15 +221,21 @@
       (skore:midi-note-on-pitch el)
       (skore:midi-note-off-pitch el)))
 
-(define (parse-stream_midi data tempo)
+(define (join-music m1 m2 joiner)
+  (list joiner m1 m2))
+
+#;(define (put-music-together m1 m2))
+
+(define (parse-stream_midi data)
   (let ([midi-data (third data)])
     (cond [(midi-command-equal? midi-data midi-note-on-flag)
            (begin
-             (cond [(not (equal? .25 (quantize (get-delta-time data)))) (set-box! starting-time (+ (unbox starting-time) (quantize (get-delta-time data))))])
+             (cond [(< (+ (unbox starting-time) (get-delta-time data)) (unbox absolute-start)) (set-box! absolute-start (+ (unbox starting-time) (get-delta-time data)))])
+             (set-box! starting-time (+ (unbox starting-time) (get-delta-time data)))
              (list (unbox starting-time) (get-delta-time data) (skore:make-midi-note-on (get-channel midi-data) (get-pitch midi-data) (get-velocity midi-data))))]
           [(midi-command-equal? midi-data midi-note-off-flag)
            (begin
-             (cond [(not (equal? .25 (quantize (get-delta-time data)))) (set-box! starting-time (+ (unbox starting-time) (quantize (get-delta-time data))))])
+             (set-box! starting-time (+ (unbox starting-time) (get-delta-time data)))
              (list (unbox starting-time) (get-delta-time data) (skore:make-midi-note-off (get-channel midi-data) (get-pitch midi-data) (get-velocity midi-data))))])))
 
 (define (get-delta-time data)
@@ -252,53 +264,48 @@
 
 ;takes a piece (just a bunch of music) and a new note with a defined starting-time
 (define (concatenate-musics piece aggregate-time new-chunk new-chunk-start-time tempo)
-  (let  ([piece-duration (convert-to-spb (get-musical-duration piece) tempo)])
+  (let ([piece-duration (* tempo (get-musical-duration piece))])
     (cond [(equal? ':+: (first piece)) (let ([val (sequential-music-handler (rest piece) aggregate-time new-chunk new-chunk-start-time tempo)])
                                          (if (equal? #f (last val))
-                                             (cond [(or
-                                                     (equal? (+ aggregate-time piece-duration) new-chunk-start-time)
-                                                     (equal? 0.0 (- (+ aggregate-time piece-duration) new-chunk-start-time))) (append piece new-chunk)];bug-zone
+                                             (cond [(equal? (+ aggregate-time piece-duration) new-chunk-start-time) (append piece (list new-chunk))]
                                                    [(< (+ aggregate-time piece-duration) new-chunk-start-time)
                                                     (maybe-add-rest new-chunk-start-time (+ aggregate-time piece-duration) tempo piece new-chunk)]
-                                                   [else (begin
-                                                           (printf "start ~a duration ~a~n" new-chunk-start-time (+ aggregate-time piece-duration))
-                                                           (raise 'itShouldnaHaveGottenHere))])
+                                                   [else (raise 'itShouldnaHaveGottenHere)])
                                              (cons (first piece) val)))]
           [(equal? ':=: (first piece)) (let ([val (parallel-music-handler (rest piece) aggregate-time new-chunk new-chunk-start-time tempo)])
-                                         (begin
-                                           (printf "secrets~n")
-                                           (if (equal? #f (last val))
+                                         (if (equal? #f (last val))
                                              (cond [(equal? (+ aggregate-time piece-duration) new-chunk-start-time) (append `(:+: ,piece) new-chunk)]
-                                                   [(or
-                                                     (equal? (+ aggregate-time piece-duration) new-chunk-start-time)
-                                                     (equal? 0.0 (- (+ aggregate-time piece-duration) new-chunk-start-time)))
+                                                   [(< (+ aggregate-time piece-duration) new-chunk-start-time)
                                                     (maybe-add-rest new-chunk-start-time (+ aggregate-time piece-duration) tempo piece new-chunk)]
-                                                   [else (begin
-                                                           (printf "start ~a duration ~a~n" new-chunk-start-time (+ aggregate-time piece-duration))
-                                                           (raise 'itShouldnaHaveGottenHere))])
-                                             (cons (first piece) val))))]
-          [(equal? 'note (first piece)) (cond [(deviation (- aggregate-time new-chunk-start-time) .0625 EPSILON)#;(equal? aggregate-time (* tempo new-chunk-start-time))
-                                               (begin(printf "here~n")(append `(:=: ,piece) new-chunk))]
-                                              [(< (+ aggregate-time piece-duration) new-chunk-start-time)
+                                                   [else (raise 'itShouldnaHaveGottenHere)])
+                                           (cons (first piece) val)))]
+          [(equal? 'note (first piece)) (cond [(equal? aggregate-time (* tempo new-chunk-start-time)) (begin(printf "here~n")(append `(:=: ,piece) new-chunk))]
+                                              [(< (+ aggregate-time (get-musical-duration piece)) (* tempo new-chunk-start-time))
                                                (maybe-add-rest new-chunk-start-time (+ aggregate-time piece-duration) tempo piece new-chunk)]
-                                              [else (begin
-                                                      (printf "penguin~n")
-                                                      (append `(:=: ,piece) (list (append `(:+: ,(make-rest aggregate-time new-chunk-start-time tempo)) new-chunk))))])]
+                                              [else (append `(:=: ,piece) (list (append `(:+: ,(make-rest aggregate-time new-chunk-start-time tempo)) new-chunk)))])]
         [else (raise 'improperlyFormattedMusicError)])))
 
 (define (maybe-add-rest new-start-time duration tempo piece new-chunk)
-  (cond [(>= .25 (quantize (- new-start-time duration))) 
-         (begin
-           (append piece new-chunk))]
-        [else (begin
-                (append piece (append `((:+: ,(make-rest duration new-start-time tempo))) new-chunk)))]))
+  ;(begin
+   ; (printf "maybe~n")
+    (cond [(equal? .125 (quantize (- new-start-time duration))) 
+         (append piece new-chunk)]
+        [else ;(begin
+               ; (printf "fifth~n")
+                (append piece (append `((:+: ,(make-rest duration new-start-time tempo))) new-chunk))]))
 
 (define (_sequential-innards note-lst new-chunk aggregate-time new-chunk-start-time tempo)
-  (if (<= (+ aggregate-time (convert-to-spb (get-musical-duration (first note-lst)) tempo)) new-chunk-start-time)
-      (cons (first note-lst) (sequential-music-handler (rest note-lst) (+ aggregate-time (convert-to-spb (get-musical-duration (first note-lst)) tempo))  new-chunk new-chunk-start-time tempo))
+  (if (<= (+ aggregate-time (* tempo (get-musical-duration (first note-lst)))) new-chunk-start-time)
+      (cons (first note-lst) (sequential-music-handler (rest note-lst) (+ aggregate-time (* tempo (get-musical-duration (first note-lst)))) new-chunk new-chunk-start-time tempo))
       (if (deviation aggregate-time new-chunk-start-time EPSILON)
-          (add-music-here note-lst new-chunk)
-          (add-music-here note-lst (list (append `(:+: ,(make-rest aggregate-time new-chunk-start-time tempo)) new-chunk))))))
+          ;(begin
+           ; (printf "aaaaaa~n")
+            (add-music-here note-lst new-chunk)
+          ;(begin
+           ; (printf "ssssssssss~n")
+            (add-music-here note-lst (list (append `(:+: ,(make-rest aggregate-time new-chunk-start-time tempo)) new-chunk))))))
+      
+      ;(list (append (append (list ':+:) note-lst) new-chunk))))
 
 (define (sequential-music-handler note-lst aggregate-time new-chunk new-chunk-start-time tempo)
   (cond [(empty? note-lst) (list #f)]
@@ -306,12 +313,12 @@
 
 (define (parallel-music-handler note-lst aggregate-time new-chunk new-chunk-start-time tempo)
   (cond [(or (empty? note-lst)
-             (<= (+ aggregate-time (convert-to-spb (get-musical-duration note-lst) tempo)) new-chunk-start-time)) (list #f)]
+             (<= (+ aggregate-time (* tempo (get-musical-duration note-lst))) new-chunk-start-time)) (list #f)]
         [else ;i need to add it
          (cond [(equal? aggregate-time new-chunk-start-time) (append note-lst new-chunk)]
-               [else (begin
-                       (printf "liz~N")
-                       (append note-lst `((:+: ,(make-rest aggregate-time new-chunk-start-time tempo) ,(list new-chunk)))))])]))
+               [else ;(begin
+                      ; (printf "screen~n")
+                       (append note-lst `((:+: ,(make-rest aggregate-time new-chunk-start-time tempo) ,(list new-chunk))))])]))
 
 (define (add-music-here note-lst new-chunk)
   (if (equal? ':=: (first (first note-lst)))

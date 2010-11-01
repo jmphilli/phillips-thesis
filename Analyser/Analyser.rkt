@@ -29,28 +29,8 @@ Jazz for the color notes.
 (define (find-chords music time-signature)
   (if (empty? music)
       '()
-      (let ([chord (read-chord (get-notes-in-beat music time-signature) time-signature)])
+      (let ([chord (read-chord (read-beat music time-signature) time-signature)])
         (cons chord (find-chords (read-past-beat music time-signature) time-signature)))))
-
-(define (get-notes-in-beat music time-signature)
-  (begin
-    #;(parse-music-duration music (string->number (substring (symbol->string time-signature) 0 1)))
-    (parse-music-duration music 1)))
-
-;(define (read-past-measure-fix-this music)
-;  (letrec ([func (lambda (dur) (let ([music-minus-duration (parse-past-music-duration music dur)])
-;                                 (if (equal? (length music) (length music-minus-duration))
-;                                     (func (+ 1 dur))
-;                                     music-minus-duration)))])
-;    (func 1)))
-
-;kinda feel like i can use the previous function and include a continuation k to get all the functionality in one piece of code, this works though i guess...
-;(define (how-much-to-read-past-measure? music)
-;  (letrec ([func (lambda (dur) (let ([music-minus-duration (parse-past-music-duration music dur)])
-;                                 (if (equal? (length music) (length music-minus-duration))
-;                                     (func (+ 1 dur))
-;                                     dur)))])
-;    (func 1)))
 
 ;given a measure of music. is it a chord? 
 (define (read-chord note-lst time-signature)
@@ -188,14 +168,16 @@ Jazz for the color notes.
       (music-in-key? music key MINOR_LST)))
 
 (define (music-in-key? music key interval-lst)
-  (cond [(equal? 'rest (first music)) #t]
-        [(equal? 'note (first music)) 
-         (let ([interval (get-tonal-distance key (first (second music)))])
-           (not (equal? #f (member interval interval-lst))))]
-        [(or (equal? ':+: (first music))
-             (equal? ':=: (first music))) 
-         (andmap (lambda (x) (music-in-key? x key interval-lst)) (rest music))]))
-         
+  (cond 
+    [(empty? music) #t]
+    [(equal? 'rest (first music)) #t]
+    [(equal? 'note (first music)) 
+     (let ([interval (get-tonal-distance key (first (second music)))])
+       (not (equal? #f (member interval interval-lst))))]
+    [(or (equal? ':+: (first music))
+         (equal? ':=: (first music)))
+     (andmap (lambda (x) (music-in-key? x key interval-lst)) (rest music))]))
+
          
 ;         (let ([on-beat-notes (on-beat-note music)])
 ;                                            (if (equal? #f on-beat-notes)
@@ -206,7 +188,7 @@ Jazz for the color notes.
 ;                                                    (music-in-key? on-beat-notes key interval-lst))))]))
 
 (define (on-beat-note music)
-  (cond [(equal? (first music) 'note) music]
+    (cond [(equal? (first music) 'note) music]
         [(equal? (first music) 'rest) #f]
         [else #|list|#
          (if (equal? ':=: (first music))
@@ -238,7 +220,7 @@ Jazz for the color notes.
 ;        [else (rest music)]));this one is super questionable..
 
 
-(define chord-test
+#|(define chord-test
   '(:+:
     (:=: (note (C 5) 2) (note (E 5) 2) (note (G 5) 2))
     (:=: (note (F 5) 2) (note (A 5) 2) (note (D 5) 2))
@@ -331,7 +313,7 @@ Jazz for the color notes.
     (note (F 3) 1/4) (note (A 3) 1/4) (note (C 3) 1/4) (note (A 3) 1/4)
     (note (G 3) 1/4) (note (Bf 3) 1/4) (note (D 3) 1/4) (note (F 3) 1/4)
     (note (C 3) 1/4) (note (E 3) 1/4) (note (G 3) 1/4) (note (Bf 3) 1/4)
-    (note (F 3) 1/4) (note (A 3) 1/4) (note (C 3) 1/4) (note (A 3) 1/4)))
+    (note (F 3) 1/4) (note (A 3) 1/4) (note (C 3) 1/4) (note (A 3) 1/4)))|#
 
 (provide analyse
          EMPTY_PIECE)

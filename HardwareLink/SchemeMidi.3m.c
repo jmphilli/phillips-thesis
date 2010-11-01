@@ -197,9 +197,6 @@ typedef struct __sFILE {
   fpos_t _offset ; 
 }
 FILE ; 
-int fclose (FILE * ) ; 
-FILE * fopen (const char * , const char * ) __asm ("_" "fopen" "$UNIX2003" ) ; 
-int fprintf (FILE * , const char * , ... ) ; 
 extern const char * const sys_errlist [] ; 
 int printf (const char * , ... ) ; 
 char * ctermid (char * ) ; 
@@ -824,6 +821,7 @@ typedef struct Scheme_Jumpup_Buf_Holder {
 Scheme_Jumpup_Buf_Holder ; 
 typedef struct Scheme_Continuation_Jump_State {
   struct Scheme_Object * jumping_to_continuation ; 
+  struct Scheme_Object * alt_full_continuation ; 
   Scheme_Object * val ; 
   mzshort num_vals ; 
   short is_kill , is_escape ; 
@@ -1173,6 +1171,13 @@ typedef struct Thread_Local_Variables {
   struct Scheme_Bucket_Table * place_local_modpath_table_ ; 
   struct Scheme_Hash_Table * opened_libs_ ; 
   struct mzrt_mutex * jit_lock_ ; 
+  struct free_list_entry * free_list_ ; 
+  int free_list_bucket_count_ ; 
+  struct Scheme_Bucket_Table * prefab_table_ ; 
+  struct Scheme_Hash_Table * place_local_symbol_table_ ; 
+  struct Scheme_Hash_Table * place_local_keyword_table_ ; 
+  struct Scheme_Hash_Table * place_local_parallel_symbol_table_ ; 
+  struct FFI_Sync_Queue * ffi_sync_queue_ ; 
 }
 Thread_Local_Variables ; 
 struct sched_param {
@@ -1227,7 +1232,7 @@ static inline Thread_Local_Variables * scheme_get_thread_local_variables () {
 typedef void (* Scheme_Kill_Action_Func ) (void * ) ; 
 typedef int (* Scheme_Frozen_Stack_Proc ) (void * ) ; 
 enum {
-  MZCONFIG_ENV , MZCONFIG_INPUT_PORT , MZCONFIG_OUTPUT_PORT , MZCONFIG_ERROR_PORT , MZCONFIG_ERROR_DISPLAY_HANDLER , MZCONFIG_ERROR_PRINT_VALUE_HANDLER , MZCONFIG_EXIT_HANDLER , MZCONFIG_INIT_EXN_HANDLER , MZCONFIG_EVAL_HANDLER , MZCONFIG_COMPILE_HANDLER , MZCONFIG_LOAD_HANDLER , MZCONFIG_LOAD_COMPILED_HANDLER , MZCONFIG_PRINT_HANDLER , MZCONFIG_PROMPT_READ_HANDLER , MZCONFIG_READ_HANDLER , MZCONFIG_READTABLE , MZCONFIG_READER_GUARD , MZCONFIG_CAN_READ_GRAPH , MZCONFIG_CAN_READ_COMPILED , MZCONFIG_CAN_READ_BOX , MZCONFIG_CAN_READ_PIPE_QUOTE , MZCONFIG_CAN_READ_DOT , MZCONFIG_CAN_READ_INFIX_DOT , MZCONFIG_CAN_READ_QUASI , MZCONFIG_CAN_READ_READER , MZCONFIG_READ_DECIMAL_INEXACT , MZCONFIG_PRINT_GRAPH , MZCONFIG_PRINT_STRUCT , MZCONFIG_PRINT_BOX , MZCONFIG_PRINT_VEC_SHORTHAND , MZCONFIG_PRINT_HASH_TABLE , MZCONFIG_PRINT_UNREADABLE , MZCONFIG_PRINT_PAIR_CURLY , MZCONFIG_PRINT_MPAIR_CURLY , MZCONFIG_PRINT_SYNTAX_WIDTH , MZCONFIG_PRINT_READER , MZCONFIG_PRINT_AS_QQ , MZCONFIG_CASE_SENS , MZCONFIG_SQUARE_BRACKETS_ARE_PARENS , MZCONFIG_CURLY_BRACES_ARE_PARENS , MZCONFIG_HONU_MODE , MZCONFIG_ERROR_PRINT_WIDTH , MZCONFIG_ERROR_PRINT_CONTEXT_LENGTH , MZCONFIG_ERROR_ESCAPE_HANDLER , MZCONFIG_ALLOW_SET_UNDEFINED , MZCONFIG_COMPILE_MODULE_CONSTS , MZCONFIG_USE_JIT , MZCONFIG_DISALLOW_INLINE , MZCONFIG_CUSTODIAN , MZCONFIG_INSPECTOR , MZCONFIG_CODE_INSPECTOR , MZCONFIG_USE_COMPILED_KIND , MZCONFIG_USE_USER_PATHS , MZCONFIG_LOAD_DIRECTORY , MZCONFIG_WRITE_DIRECTORY , MZCONFIG_COLLECTION_PATHS , MZCONFIG_PORT_PRINT_HANDLER , MZCONFIG_LOAD_EXTENSION_HANDLER , MZCONFIG_CURRENT_DIRECTORY , MZCONFIG_RANDOM_STATE , MZCONFIG_CURRENT_MODULE_RESOLVER , MZCONFIG_CURRENT_MODULE_NAME , MZCONFIG_CURRENT_MODULE_SRC , MZCONFIG_ERROR_PRINT_SRCLOC , MZCONFIG_CMDLINE_ARGS , MZCONFIG_LOCALE , MZCONFIG_SECURITY_GUARD , MZCONFIG_PORT_COUNT_LINES , MZCONFIG_SCHEDULER_RANDOM_STATE , MZCONFIG_THREAD_SET , MZCONFIG_THREAD_INIT_STACK_SIZE , MZCONFIG_LOAD_DELAY_ENABLED , MZCONFIG_DELAY_LOAD_INFO , MZCONFIG_EXPAND_OBSERVE , MZCONFIG_LOGGER , __MZCONFIG_BUILTIN_COUNT__ }
+  MZCONFIG_ENV , MZCONFIG_INPUT_PORT , MZCONFIG_OUTPUT_PORT , MZCONFIG_ERROR_PORT , MZCONFIG_ERROR_DISPLAY_HANDLER , MZCONFIG_ERROR_PRINT_VALUE_HANDLER , MZCONFIG_EXIT_HANDLER , MZCONFIG_INIT_EXN_HANDLER , MZCONFIG_EVAL_HANDLER , MZCONFIG_COMPILE_HANDLER , MZCONFIG_LOAD_HANDLER , MZCONFIG_LOAD_COMPILED_HANDLER , MZCONFIG_PRINT_HANDLER , MZCONFIG_PROMPT_READ_HANDLER , MZCONFIG_READ_HANDLER , MZCONFIG_READTABLE , MZCONFIG_READER_GUARD , MZCONFIG_CAN_READ_GRAPH , MZCONFIG_CAN_READ_COMPILED , MZCONFIG_CAN_READ_BOX , MZCONFIG_CAN_READ_PIPE_QUOTE , MZCONFIG_CAN_READ_DOT , MZCONFIG_CAN_READ_INFIX_DOT , MZCONFIG_CAN_READ_QUASI , MZCONFIG_CAN_READ_READER , MZCONFIG_READ_DECIMAL_INEXACT , MZCONFIG_PRINT_GRAPH , MZCONFIG_PRINT_STRUCT , MZCONFIG_PRINT_BOX , MZCONFIG_PRINT_VEC_SHORTHAND , MZCONFIG_PRINT_HASH_TABLE , MZCONFIG_PRINT_UNREADABLE , MZCONFIG_PRINT_PAIR_CURLY , MZCONFIG_PRINT_MPAIR_CURLY , MZCONFIG_PRINT_SYNTAX_WIDTH , MZCONFIG_PRINT_READER , MZCONFIG_PRINT_AS_QQ , MZCONFIG_CASE_SENS , MZCONFIG_SQUARE_BRACKETS_ARE_PARENS , MZCONFIG_CURLY_BRACES_ARE_PARENS , MZCONFIG_HONU_MODE , MZCONFIG_ERROR_PRINT_WIDTH , MZCONFIG_ERROR_PRINT_CONTEXT_LENGTH , MZCONFIG_ERROR_ESCAPE_HANDLER , MZCONFIG_ALLOW_SET_UNDEFINED , MZCONFIG_COMPILE_MODULE_CONSTS , MZCONFIG_USE_JIT , MZCONFIG_DISALLOW_INLINE , MZCONFIG_CUSTODIAN , MZCONFIG_INSPECTOR , MZCONFIG_CODE_INSPECTOR , MZCONFIG_USE_COMPILED_KIND , MZCONFIG_USE_USER_PATHS , MZCONFIG_LOAD_DIRECTORY , MZCONFIG_WRITE_DIRECTORY , MZCONFIG_COLLECTION_PATHS , MZCONFIG_PORT_PRINT_HANDLER , MZCONFIG_LOAD_EXTENSION_HANDLER , MZCONFIG_CURRENT_DIRECTORY , MZCONFIG_RANDOM_STATE , MZCONFIG_CURRENT_MODULE_RESOLVER , MZCONFIG_CURRENT_MODULE_NAME , MZCONFIG_CURRENT_MODULE_SRC , MZCONFIG_ERROR_PRINT_SRCLOC , MZCONFIG_CMDLINE_ARGS , MZCONFIG_LOCALE , MZCONFIG_SECURITY_GUARD , MZCONFIG_PORT_COUNT_LINES , MZCONFIG_SCHEDULER_RANDOM_STATE , MZCONFIG_THREAD_SET , MZCONFIG_THREAD_INIT_STACK_SIZE , MZCONFIG_SUBPROC_CUSTODIAN_MODE , MZCONFIG_SUBPROC_GROUP_ENABLED , MZCONFIG_LOAD_DELAY_ENABLED , MZCONFIG_DELAY_LOAD_INFO , MZCONFIG_EXPAND_OBSERVE , MZCONFIG_LOGGER , __MZCONFIG_BUILTIN_COUNT__ }
 ; 
 typedef struct Scheme_Input_Port Scheme_Input_Port ; 
 typedef struct Scheme_Output_Port Scheme_Output_Port ; 
@@ -3098,23 +3103,21 @@ extern OSStatus MIDIInputPortCreate (MIDIClientRef client , CFStringRef portName
 extern OSStatus MIDIPortConnectSource (MIDIPortRef port , MIDIEndpointRef source , void * connRefCon ) __attribute__ ((visibility ("default" ) ) ) ; 
 extern ItemCount MIDIGetNumberOfSources () __attribute__ ((visibility ("default" ) ) ) ; 
 extern MIDIEndpointRef MIDIGetSource (ItemCount sourceIndex0 ) __attribute__ ((visibility ("default" ) ) ) ; 
-extern MIDIPacket * MIDIPacketListInit (MIDIPacketList * pktlist ) __attribute__ ((visibility ("default" ) ) ) ; 
+extern OSStatus MIDIEndpointDispose (MIDIEndpointRef endpt ) __attribute__ ((visibility ("default" ) ) ) ; 
 typedef struct {
   Scheme_Type t ; 
   int size ; 
   MIDIPacket * * pkts ; 
 }
 Queue ; 
-int getQSize () ; 
 Queue * newQueue () ; 
 void freeQueue () ; 
-_Bool isEmpty (Queue * q ) ; 
-void logger (int num ) ; 
+_Bool isEmpty () ; 
 void enqueue (Queue * q , MIDIPacketList * p ) ; 
 MIDIPacket * dequeue () ; 
-MIDIPacketList * makeQueueEnd () ; 
 Scheme_Object * getQueueForWaiting () ; 
 Queue * q ; 
+MIDIEndpointRef * savedSrc ; 
 Scheme_Object * scheme_initialize (Scheme_Env * env ) ; 
 Scheme_Object * scheme_reload (Scheme_Env * env ) ; 
 Scheme_Object * scheme_module_name () ; 
@@ -3122,12 +3125,13 @@ _Bool connect () ;
 _Bool midiInit () ; 
 void schemeMidiReadProc (const MIDIPacketList * pktlist , void * readProcRefCon , void * srcConnRefCon ) ; 
 int readyProc (Scheme_Object * data ) ; 
+int ready (Scheme_Object * data ) ; 
 void initNewType () ; 
 Queue * newQueue () {
   Queue * q ; 
   MIDIPacket * * pktlist ; 
   DECL_RET_SAVE (Queue * ) PREPARE_VAR_STACK_ONCE(2);
-  BLOCK_SETUP_TOP((PUSH(q, 0), PUSH(pktlist, 1)));
+  BLOCK_SETUP_TOP((PUSH(pktlist, 0), PUSH(q, 1)));
 # define XfOrM1_COUNT (2)
 # define SETUP_XfOrM1(x) SETUP(XfOrM1_COUNT)
 # define BLOCK_SETUP(x) BLOCK_SETUP_once(x)
@@ -3151,42 +3155,21 @@ void freeQueue () {
   free (q -> pkts ) ; 
   free (q ) ; 
 }
-_Bool isEmpty (Queue * q ) {
+_Bool isEmpty () {
   /* No conversion */
   return q -> size == 0 ; 
 }
-int getQSize () {
-  /* No conversion */
-  return q -> size ; 
-}
-void logger (int num ) {
-  FILE * fptr ; 
-  PREPARE_VAR_STACK_ONCE(1);
-  BLOCK_SETUP_TOP((PUSH(fptr, 0)));
-# define XfOrM5_COUNT (1)
-# define SETUP_XfOrM5(x) SETUP(XfOrM5_COUNT)
-# define BLOCK_SETUP(x) BLOCK_SETUP_once(x)
-# define FUNCCALL(s, x) FUNCCALL_once(s, x)
-# define FUNCCALL_EMPTY(x) FUNCCALL_EMPTY_once(x)
-# define FUNCCALL_AGAIN(x) FUNCCALL_AGAIN_once(x)
-  fptr = NULLED_OUT ; 
-  fptr = FUNCCALL(SETUP_XfOrM5(_), fopen ("myFile.output" , "a+" ) ); 
-  FUNCCALL_AGAIN(fprintf (fptr , "%X\n" , num ) ); 
-  FUNCCALL_EMPTY(fclose (fptr ) ); 
-  RET_NOTHING_AT_END ; 
-# undef BLOCK_SETUP
-# undef FUNCCALL
-# undef FUNCCALL_EMPTY
-# undef FUNCCALL_AGAIN
-}
-void enqueue (Queue * q , MIDIPacketList * packetList ) {
-  /* No conversion */
+void enqueue (Queue * q , MIDIPacketList * packetList ) XFORM_SKIP_PROC {
   int i ; 
   MIDIPacket * packet ; 
+  MIDIPacket * tmp ; 
   packet = & packetList -> packet [0 ] ; 
+  tmp = malloc (sizeof (MIDIPacket ) ) ; 
   for (i = 0 ; (packet != ((void * ) 0 ) && i < packetList -> numPackets ) ; i ++ ) {
-    if (! (packet -> data [0 ] == 254 || packet -> data [0 ] == 248 ) ) {
-      q -> pkts [q -> size ] = packet ; 
+    if (packet -> data [0 ] != 254 && packet -> data [0 ] != 248 ) {
+      ((__builtin_object_size (tmp , 0 ) != (size_t ) - 1 ) ? __builtin___memcpy_chk (tmp , packet , sizeof (MIDIPacket ) , __builtin_object_size (tmp , 0 ) ) : __inline_memcpy_chk (tmp , packet , sizeof (MIDIPacket ) ) ) ; 
+      ((__builtin_object_size (tmp -> data , 0 ) != (size_t ) - 1 ) ? __builtin___memcpy_chk (tmp -> data , packet -> data , sizeof (Byte ) * 256 , __builtin_object_size (tmp -> data , 0 ) ) : __inline_memcpy_chk (tmp -> data , packet -> data , sizeof (Byte ) * 256 ) ) ; 
+      q -> pkts [q -> size ] = tmp ; 
       q -> size ++ ; 
     }
   }
@@ -3210,14 +3193,14 @@ Scheme_Object * scheme_initialize (Scheme_Env * env ) {
   Scheme_Object * __funcarg128 = NULLED_OUT ; 
   DECL_RET_SAVE (Scheme_Object * ) PREPARE_VAR_STACK_ONCE(2);
   BLOCK_SETUP_TOP((PUSH(mod_env, 0), PUSH(env, 1)));
-# define XfOrM15_COUNT (2)
-# define SETUP_XfOrM15(x) SETUP(XfOrM15_COUNT)
+# define XfOrM8_COUNT (2)
+# define SETUP_XfOrM8(x) SETUP(XfOrM8_COUNT)
 # define BLOCK_SETUP(x) BLOCK_SETUP_once(x)
 # define FUNCCALL(s, x) FUNCCALL_once(s, x)
 # define FUNCCALL_EMPTY(x) FUNCCALL_EMPTY_once(x)
 # define FUNCCALL_AGAIN(x) FUNCCALL_AGAIN_once(x)
   mod_env = NULLED_OUT ; 
-  mod_env = (__funcarg128 = FUNCCALL(SETUP_XfOrM15(_), scheme_intern_symbol ("SchemeMidi" ) ), FUNCCALL_AGAIN(scheme_primitive_module (__funcarg128 , env ) )) ; 
+  mod_env = (__funcarg128 = FUNCCALL(SETUP_XfOrM8(_), scheme_intern_symbol ("SchemeMidi" ) ), FUNCCALL_AGAIN(scheme_primitive_module (__funcarg128 , env ) )) ; 
   FUNCCALL_EMPTY(scheme_finish_primitive_module (mod_env ) ); 
   RET_VALUE_START (scheme_void ) RET_VALUE_END ; 
 # undef BLOCK_SETUP
@@ -3228,43 +3211,24 @@ Scheme_Object * scheme_initialize (Scheme_Env * env ) {
 _Bool connect () {
   /* No conversion */
   _Bool b ; 
+  savedSrc = malloc (sizeof (MIDIEndpointRef ) ) ; 
   b = midiInit () ; 
   q = newQueue () ; 
   initNewType () ; 
   return b ; 
 }
-MIDIPacketList * makeQueueEnd () {
-  Byte * buffer ; 
-  MIDIPacketList * pktlist ; 
-  DECL_RET_SAVE (MIDIPacketList * ) PREPARE_VAR_STACK_ONCE(2);
-  BLOCK_SETUP_TOP((PUSH(pktlist, 0), PUSH(buffer, 1)));
-# define XfOrM17_COUNT (2)
-# define SETUP_XfOrM17(x) SETUP(XfOrM17_COUNT)
-# define BLOCK_SETUP(x) BLOCK_SETUP_once(x)
-# define FUNCCALL(s, x) FUNCCALL_once(s, x)
-# define FUNCCALL_EMPTY(x) FUNCCALL_EMPTY_once(x)
-# define FUNCCALL_AGAIN(x) FUNCCALL_AGAIN_once(x)
-  buffer = NULLED_OUT ; 
-  pktlist = NULLED_OUT ; 
-  buffer = FUNCCALL(SETUP_XfOrM17(_), malloc (sizeof (Byte ) * 2048 ) ); 
-  pktlist = (MIDIPacketList * ) buffer ; 
-  FUNCCALL(SETUP_XfOrM17(_), MIDIPacketListInit (pktlist ) ); 
-  RET_VALUE_START (pktlist ) RET_VALUE_END ; 
-# undef BLOCK_SETUP
-# undef FUNCCALL
-# undef FUNCCALL_EMPTY
-# undef FUNCCALL_AGAIN
-}
 Scheme_Object * scheme_reload (Scheme_Env * env ) {
   PREPARE_VAR_STACK_ONCE(1);
   BLOCK_SETUP_TOP((PUSH(env, 0)));
-# define XfOrM18_COUNT (1)
-# define SETUP_XfOrM18(x) SETUP(XfOrM18_COUNT)
+# define XfOrM10_COUNT (1)
+# define SETUP_XfOrM10(x) SETUP(XfOrM10_COUNT)
 # define BLOCK_SETUP(x) BLOCK_SETUP_once(x)
 # define FUNCCALL(s, x) FUNCCALL_once(s, x)
 # define FUNCCALL_EMPTY(x) FUNCCALL_EMPTY_once(x)
 # define FUNCCALL_AGAIN(x) FUNCCALL_AGAIN_once(x)
-  FUNCCALL(SETUP_XfOrM18(_), freeQueue () ); 
+  FUNCCALL(SETUP_XfOrM10(_), freeAll () ); 
+  FUNCCALL(SETUP_XfOrM10(_), MIDIEndpointDispose (* savedSrc ) ); 
+  FUNCCALL_AGAIN(freeQueue () ); 
   RET_VALUE_EMPTY_START (FUNCCALL_EMPTY(scheme_initialize (env ) )) RET_VALUE_EMPTY_END ; 
 # undef BLOCK_SETUP
 # undef FUNCCALL
@@ -3275,6 +3239,33 @@ Scheme_Object * scheme_module_name () {
   /* No conversion */
   return scheme_intern_symbol ("SchemeMidi" ) ; 
 }
+void freeAll () {
+  int i ; 
+  int qSize ; 
+  MIDIPacket * pkt ; 
+  PREPARE_VAR_STACK_ONCE(1);
+  BLOCK_SETUP_TOP((PUSH(pkt, 0)));
+# define XfOrM12_COUNT (1)
+# define SETUP_XfOrM12(x) SETUP(XfOrM12_COUNT)
+# define BLOCK_SETUP(x) BLOCK_SETUP_once(x)
+# define FUNCCALL(s, x) FUNCCALL_once(s, x)
+# define FUNCCALL_EMPTY(x) FUNCCALL_EMPTY_once(x)
+# define FUNCCALL_AGAIN(x) FUNCCALL_AGAIN_once(x)
+  pkt = NULLED_OUT ; 
+  i = 0 ; 
+  qSize = q -> size ; 
+  for (i ; i < qSize ; i ++ ) {
+#   define XfOrM14_COUNT (0+XfOrM12_COUNT)
+#   define SETUP_XfOrM14(x) SETUP_XfOrM12(x)
+    pkt = FUNCCALL(SETUP_XfOrM14(_), dequeue () ); 
+    FUNCCALL(SETUP_XfOrM14(_), schemeFree (pkt ) ); 
+  }
+  RET_NOTHING_AT_END ; 
+# undef BLOCK_SETUP
+# undef FUNCCALL
+# undef FUNCCALL_EMPTY
+# undef FUNCCALL_AGAIN
+}
 _Bool midiInit () {
   MIDIPortRef * inPort ; 
   MIDIClientRef * client ; 
@@ -3283,8 +3274,8 @@ _Bool midiInit () {
   int iSrc ; 
   DECL_RET_SAVE (_Bool ) PREPARE_VAR_STACK(5);
   BLOCK_SETUP_TOP((PUSH(portName, 0), PUSH(client, 1), PUSH(inPort, 2)));
-# define XfOrM20_COUNT (3)
-# define SETUP_XfOrM20(x) SETUP(XfOrM20_COUNT)
+# define XfOrM15_COUNT (3)
+# define SETUP_XfOrM15(x) SETUP(XfOrM15_COUNT)
 # define BLOCK_SETUP(x) BLOCK_SETUP_each(x)
 # define FUNCCALL(s, x) FUNCCALL_each(s, x)
 # define FUNCCALL_EMPTY(x) FUNCCALL_EMPTY_each(x)
@@ -3292,23 +3283,24 @@ _Bool midiInit () {
   inPort = NULLED_OUT ; 
   client = NULLED_OUT ; 
   portName = NULLED_OUT ; 
-  inPort = (MIDIPortRef * ) FUNCCALL(SETUP_XfOrM20(_), malloc (sizeof (MIDIPortRef ) ) ); 
-  client = (MIDIClientRef * ) FUNCCALL(SETUP_XfOrM20(_), malloc (sizeof (MIDIClientRef ) ) ); 
-  nSrcs = FUNCCALL(SETUP_XfOrM20(_), MIDIGetNumberOfSources () ); 
+  inPort = (MIDIPortRef * ) FUNCCALL(SETUP_XfOrM15(_), malloc (sizeof (MIDIPortRef ) ) ); 
+  client = (MIDIClientRef * ) FUNCCALL(SETUP_XfOrM15(_), malloc (sizeof (MIDIClientRef ) ) ); 
+  nSrcs = FUNCCALL(SETUP_XfOrM15(_), MIDIGetNumberOfSources () ); 
   portName = FUNCCALL_AGAIN(CFStringCreateWithCString (((void * ) 0 ) , "my port" , kCFStringEncodingMacRoman ) ); 
   FUNCCALL_AGAIN(MIDIClientCreate (portName , ((void * ) 0 ) , ((void * ) 0 ) , client ) ); 
   FUNCCALL_AGAIN(MIDIInputPortCreate (* client , portName , (MIDIReadProc ) schemeMidiReadProc , client , inPort ) ); 
   for (iSrc = 0 ; iSrc < nSrcs ; ++ iSrc ) {
     MIDIEndpointRef src ; 
     void * srcConnRefCon ; 
-    BLOCK_SETUP((PUSH(src, 0+XfOrM20_COUNT), PUSH(srcConnRefCon, 1+XfOrM20_COUNT)));
-#   define XfOrM22_COUNT (2+XfOrM20_COUNT)
-#   define SETUP_XfOrM22(x) SETUP(XfOrM22_COUNT)
+    BLOCK_SETUP((PUSH(src, 0+XfOrM15_COUNT), PUSH(srcConnRefCon, 1+XfOrM15_COUNT)));
+#   define XfOrM17_COUNT (2+XfOrM15_COUNT)
+#   define SETUP_XfOrM17(x) SETUP(XfOrM17_COUNT)
     src = NULLED_OUT ; 
     srcConnRefCon = NULLED_OUT ; 
-    src = FUNCCALL(SETUP_XfOrM22(_), MIDIGetSource (iSrc ) ); 
+    * savedSrc = src ; 
+    src = FUNCCALL(SETUP_XfOrM17(_), MIDIGetSource (iSrc ) ); 
     srcConnRefCon = src ; 
-    FUNCCALL(SETUP_XfOrM22(_), MIDIPortConnectSource (* inPort , src , srcConnRefCon ) ); 
+    FUNCCALL(SETUP_XfOrM17(_), MIDIPortConnectSource (* inPort , src , srcConnRefCon ) ); 
   }
   RET_VALUE_START (nSrcs > 0 ) RET_VALUE_END ; 
 # undef BLOCK_SETUP
@@ -3328,36 +3320,17 @@ Scheme_Object * getQueueForWaiting () {
   /* No conversion */
   return (Scheme_Object * ) q ; 
 }
-void schemeMidiReadProc (const MIDIPacketList * packetList , void * readProcRefCon , void * srcConnRefCon ) {
-  int i ; 
-  MIDIPacket * packet ; 
-  PREPARE_VAR_STACK_ONCE(2);
-  BLOCK_SETUP_TOP((PUSH(packetList, 0), PUSH(packet, 1)));
-# define XfOrM25_COUNT (2)
-# define SETUP_XfOrM25(x) SETUP(XfOrM25_COUNT)
-# define BLOCK_SETUP(x) BLOCK_SETUP_once(x)
-# define FUNCCALL(s, x) FUNCCALL_once(s, x)
-# define FUNCCALL_EMPTY(x) FUNCCALL_EMPTY_once(x)
-# define FUNCCALL_AGAIN(x) FUNCCALL_AGAIN_once(x)
-  packet = NULLED_OUT ; 
-  FUNCCALL(SETUP_XfOrM25(_), malloc (sizeof (MIDIPacket ) ) ); 
-  packet = & packetList -> packet [0 ] ; 
-  for (i = 0 ; (packet != ((void * ) 0 ) && i < packetList -> numPackets ) ; i ++ ) {
-    if (! (packet -> data [0 ] == 254 || packet -> data [0 ] == 248 ) ) {
-      q -> pkts [q -> size ] = packet ; 
-      q -> size ++ ; 
-    }
-  }
-  RET_NOTHING_AT_END ; 
-# undef BLOCK_SETUP
-# undef FUNCCALL
-# undef FUNCCALL_EMPTY
-# undef FUNCCALL_AGAIN
+void schemeMidiReadProc (const MIDIPacketList * packetList , void * readProcRefCon , void * srcConnRefCon ) XFORM_SKIP_PROC {
+  enqueue (q , packetList ) ; 
 }
 int readyProc (Scheme_Object * data ) {
   /* No conversion */
-  if (isEmpty ((Queue * ) data ) ) {
+  if (isEmpty () ) {
     return 0 ; 
   }
   return 1 ; 
+}
+void schemeFree (MIDIPacket * pkt ) {
+  /* No conversion */
+  free (pkt ) ; 
 }

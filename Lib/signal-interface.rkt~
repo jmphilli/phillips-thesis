@@ -31,7 +31,7 @@ Write a function that decides which of the musics is more musical at any given t
     (set! base-value b-v)
     (go)))
 
-(define (add-to-signal-queue time new-value)
+(define (add-to-signal time new-value)
   (set-box! q (add-to-signal-queue_ time new-value (unbox q))))
 #|****************************************************************************************************************************************************************************************************|#
 
@@ -48,7 +48,8 @@ Write a function that decides which of the musics is more musical at any given t
 (define (go)
   (map-e (lambda (x)
            (begin
-             (set-cell! my-sig (foldr my-func base-value (find-all-values-at-time x (unbox q))))
+             (set-cell! my-sig (my-func (append base-value (find-all-values-at-time x (unbox q)))))
+             #;(set-cell! my-sig (foldr my-func base-value (find-all-values-at-time x (unbox q))))
              (clean-out-queue))) (changes clock)))
 
 (define (clean-out-queue)
@@ -87,3 +88,4 @@ Write a function that decides which of the musics is more musical at any given t
 (init-sig my-sig max 0)
 ;32451|#
 #|****************************************************************************************************************************************************************************************************|#
+(provide init-sig add-to-signal)

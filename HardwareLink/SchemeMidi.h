@@ -11,27 +11,23 @@ typedef struct{
   MIDIPacket** pkts; /*timestamp is a uint64*/
 } Queue;
 
-int getQSize();
-
 Queue* newQueue();
 
 void freeQueue();
 
-bool isEmpty(Queue* q);
-
-void logger(int num);
+bool isEmpty();
 
 void enqueue(Queue* q, MIDIPacketList* p);
 
 MIDIPacket* dequeue();
 
-void nullOp(Scheme_Object* data, void* fds);
-void nullOpA(Scheme_Object* data);
-MIDIPacketList* makeQueueEnd();
+//MIDIPacketList* makeQueueEnd();
 
 Scheme_Object* getQueueForWaiting();
 
 Queue* q;
+
+MIDIEndpointRef* savedSrc;
 
 /*
 You should set up an evt through the C API using scheme_add_evt(),
@@ -64,5 +60,7 @@ void schemeMidiReadProc(const MIDIPacketList *pktlist, void *readProcRefCon, voi
 
 //MIDIPacket* readyProc(Scheme_Object* data);
 int readyProc(Scheme_Object* data);
+
+int ready(Scheme_Object* data);
 
 void initNewType();

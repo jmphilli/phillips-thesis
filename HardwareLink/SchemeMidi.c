@@ -18,33 +18,31 @@ void freeQueue(){
   free(q);
 }
 
-bool isEmpty(Queue* q){
+bool isEmpty(){
   return q->size == 0;
 }
 
-int getQSize(){
-  return q->size;
-}
-
-void logger(int num){
-  FILE* fptr;
-  fptr = fopen("myFile.output", "a+");
-  fprintf(fptr, "%X\n", num);
-  fclose(fptr);
-}
-
-void enqueue(Queue* q, MIDIPacketList* packetList){
+void enqueue(Queue* q, MIDIPacketList* packetList)
+ XFORM_SKIP_PROC
+{
   int i;
   MIDIPacket* packet;
-  //void* tmp;
+  MIDIPacket* tmp;
+  //Byte* data;
 
   packet = &packetList->packet[0];
-  //tmp = malloc(sizeof(MIDIPacket));
+  tmp = malloc(sizeof(MIDIPacket));
+  //data = malloc(256 * sizeof(Byte));
 
   for(i = 0; (packet != NULL && i < packetList->numPackets); i++){
-    if (!(packet->data[0] == 254 || packet->data[0] == 248)) {
-      //memcpy(tmp, packet, sizeof(MIDIPacket));
-      q->pkts[q->size] = packet;
+    if (packet->data[0] != 254 && packet->data[0] != 248) {
+      memcpy(tmp, packet, sizeof(MIDIPacket));
+      memcpy(tmp->data, packet->data, sizeof(Byte) * 256);
+      q->pkts[q->size] = tmp;
+      /*memcpy(data, packet->data, 256 * sizeof(Byte));
+      q->pkts[q->size]->timeStamp = packet->timeStamp;
+      q->pkts[q->size]->length = packet->length;*/
+      //q->pkts[q->size]->data = data;
       q->size++;
     }
   }
@@ -57,8 +55,6 @@ MIDIPacket* dequeue(){
   packet = NULL;
 
   if(q->size > 0){
-    //packet = malloc(sizeof(MIDIPacket));
-    //memcpy(packet, q->pkts[0], sizeof(MIDIPacket));
     packet = q->pkts[0];
 
     for(i = 0; i < q->size - 1; i++){
@@ -67,16 +63,6 @@ MIDIPacket* dequeue(){
 
     q->size--;
   }
-
-
-  /* I REALLY don't like this, but I'm writing in C using Apple's API and 
-    the extension bit for Racket, so I'm limited with what I can do.
-    Anytime I allocated memory in the enqueue func it broke everything.
-    Needless to say, this is a work around to keep the data I don't want out
-  if(packet->data[0] == 248 || packet->data[0] == 254){
-    packet = NULL;
-  }
-  */
 
   return packet;
 }
@@ -92,6 +78,9 @@ Scheme_Object* scheme_initialize(Scheme_Env *env){
 
 bool connect(){
   bool b;
+
+  savedSrc = malloc(sizeof(MIDIEndpointRef));
+  
 //  MIDIPacketList* end;
   b = midiInit();
   q = newQueue();
@@ -103,7 +92,7 @@ bool connect(){
   return b;
 }
 
-MIDIPacketList* makeQueueEnd(){
+/*MIDIPacketList* makeQueueEnd(){
   Byte* buffer;
   MIDIPacketList* pktlist;
 
@@ -112,15 +101,31 @@ MIDIPacketList* makeQueueEnd(){
   MIDIPacketListInit(pktlist);
 
   return pktlist;
-}
+}*/
 
 Scheme_Object* scheme_reload(Scheme_Env *env){
+  freeAll();
+  MIDIEndpointDispose(*savedSrc);
   freeQueue();
   return scheme_initialize(env);
 }
 
 Scheme_Object* scheme_module_name(){
   return scheme_intern_symbol("SchemeMidi");
+}
+
+void freeAll(){
+  int i;
+  int qSize;
+  MIDIPacket* pkt;
+
+  i = 0;
+  qSize = q->size;
+
+  for(i; i < qSize; i++){
+    pkt = dequeue();
+    schemeFree(pkt);
+  }
 }
 
 bool midiInit(){
@@ -143,6 +148,9 @@ bool midiInit(){
   for (iSrc = 0; iSrc < nSrcs; ++iSrc) {
     MIDIEndpointRef src;
     void *srcConnRefCon;
+
+    //todo fix this for multiple intsruments
+    *savedSrc = src;
 
     src = MIDIGetSource(iSrc);
     srcConnRefCon = src;
@@ -186,30 +194,20 @@ Scheme_Object* getQueueForWaiting(){
   return (Scheme_Object*)q;
 }
 
-void schemeMidiReadProc(const MIDIPacketList *packetList, void *readProcRefCon, void *srcConnRefCon){
-  int i;
-  MIDIPacket* packet;
-  //void* tmp;
-
-  malloc(sizeof(MIDIPacket));
-  packet = &packetList->packet[0];
-  //tmp = malloc(sizeof(MIDIPacket));
-
-  for(i = 0; (packet != NULL && i < packetList->numPackets); i++){
-    if (!(packet->data[0] == 254 || packet->data[0] == 248)) {
-      //memcpy(tmp, packet, sizeof(MIDIPacket));
-      q->pkts[q->size] = packet;
-      q->size++;
-    }
-  }
-
-  //scheme_signal_received();
+void schemeMidiReadProc(const MIDIPacketList *packetList, void *readProcRefCon, void *srcConnRefCon)
+XFORM_SKIP_PROC
+{
+  enqueue(q, packetList);
 }
 
 int readyProc(Scheme_Object* data){
-  if(isEmpty((Queue*)data)){
+  if(isEmpty()){
     return false;
   }
 
   return true;
+}
+
+void schemeFree(MIDIPacket* pkt){
+  free(pkt);
 }

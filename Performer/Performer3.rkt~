@@ -8,9 +8,10 @@
         (+ (car xs) (apply sum (cdr xs)))))
 |#
 
-(define (music-value-function . tl) (car tl))
+(define (new-func . tl) (car tl))
+
+(set! music-function new-func)
 
 (provide perform
-         music-value-function
          update-music-signal
          init-performer)
