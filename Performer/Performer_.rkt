@@ -20,9 +20,7 @@
 
 (define (perform piece)
   (let ([upcoming-form (find-patterns (piece-changes piece))])
-      (begin
-        (printf "~a~n" upcoming-form)
-        upcoming-form)))
+    upcoming-form))
 
 (define (make-music keys changes length-of-performance)
   (cond [(cadential? keys changes)
@@ -116,7 +114,9 @@
 
 ;ending with a 7 or 2 in the key; 3 and 5 in the chord (5 chord)
 (define (make-half-cadential-ending changes)
-  (make-ending (map (lambda (x y) (get-note-lst-from-degrees x y)) changes (make-list-of-length-with (length changes) `(,MAJOR_THIRD ,PERFECT_FIFTH)))))
+  (make-ending (map (lambda (x y) (if (equal? x 'NC)
+                                      '(rest 1)
+                                      (get-note-lst-from-degrees x y))) changes (make-list-of-length-with (length changes) `(,MAJOR_THIRD ,PERFECT_FIFTH)))))
 
 (define (make-list-of-length-with x y)
   (if (equal? 0 x)
@@ -132,13 +132,17 @@
 ;3 and 5 of 5 are 2 and 7 of 1.
 ;a squid eating dough in a polyethelene bag is fast and bulbous got me?
 (define (make-authentic-ending changes) 
-  (make-ending (map (lambda (x y) (get-note-lst-from-degrees x y)) changes (if (>= (length changes) 2)
+  (make-ending (map (lambda (x y) (if (equal? 'NC x)
+                                      '(rest 1)
+                                      (get-note-lst-from-degrees x y))) changes (if (>= (length changes) 2)
                                                                                `((,MAJOR_THIRD ,PERFECT_FIFTH) (,UNISON))
                                                                                `((,UNISON))))))
 
 ;7 or 2 in the key resolving to 1 or 3 at the end
 (define (make-deceptive-ending changes) 
-  (make-ending (map (lambda (x y) (get-note-lst-from-degrees x y)) changes `((,(if (major-key-symbol? (first changes))
+  (make-ending (map (lambda (x y) (if (equal? 'NC x)
+                                      '(rest 1)
+                                      (get-note-lst-from-degrees x y))) changes `((,(if (major-key-symbol? (first changes))
                                                                                    MAJOR_THIRD
                                                                                    MINOR_THIRD) ,PERFECT_FIFTH) (,UNISON ,(if (major-key-symbol? (second changes))
                                                                                                                             MAJOR_THIRD

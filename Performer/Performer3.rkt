@@ -22,7 +22,7 @@ repeats so that going up or down is evenly weighted again.
 
 ;if we're going up, the new note number is the highest note in the passage. down? then lowest.
 (define (reset-note-number music)
-  (let ([val (get-distance-from-note-number music)])
+  (let ([val (get-distance-from-note-number note-number music)])
     (set! note-number (+ val note-number))))
 
 ; get distance from note for each passage. the smallest distance which is in the correct direction wins
@@ -42,12 +42,12 @@ repeats so that going up or down is evenly weighted again.
     (if (empty? musics-w-notes)
         '(rest 1)
         (foldl (lambda (x result)
-                 (cond [(same-direction? x) (cond [(< (get-distance-from-note-number x) (get-distance-from-note-number result)) x]
+                 (cond [(same-direction? x) (cond [(< (get-distance-from-note-number note-number x) (get-distance-from-note-number note-number result)) x]
                                                   [else result])]
                        [else result])) '(rest 1) musics-w-notes))))
 
 (define (same-direction? music)
-  (let ([val (get-distance-from-note-number music)])
+  (let ([val (get-distance-from-note-number note-number music)])
     (or (and (equal? 'up direction) (positive? val))
         (and (equal? 'down direction) (negative? val))
         (equal? direction 'none))))
@@ -72,10 +72,12 @@ repeats so that going up or down is evenly weighted again.
   (if (empty? music)
       '()
       (cond [(or (equal? ':+: (first music)) (equal? ':=: (first music))) (get-notes (rest music))]
+            [(equal? (first music) 'rest) '()]
+            [(equal? (first music) 'note) music]
             [(list? (first music)) (cond [(equal? 'note (first (first music))) (cons (first music) (get-notes (rest music)))]
                                          [(equal? 'rest (first (first music))) (get-notes (rest music))]
                                          [else (append (get-notes (first music)) (get-notes (rest music)))])]
-            [else 'unsupported-get-notes])))
+            [else (raise 'unsupported:get-notes)])))
 
 (define (convert-notes-to-note-numbers notes)
   (if (empty? notes)
@@ -100,7 +102,7 @@ repeats so that going up or down is evenly weighted again.
     (begin
       (increment-count)
       (reset-note-number val)
-      val)))
+      (thread (lambda () (skore:play-music val))))))
 
 #|*****************|#
 

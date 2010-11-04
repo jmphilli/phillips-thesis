@@ -13,15 +13,12 @@
 #|
 
 TODO:
-
-then add the 'make music' bit back in:: hardcode some upcoming changes to run into it.
-
-finally add the upcoming changes bit
+see if performer2/3 is getting any upcoming changes.
 |#
 
 (define analysed-piece (box EMPTY_PIECE))
 (define tempo (box 'a))
-(define clock (- milliseconds (value-now milliseconds))) ;; need to change to a microsecond clock ;;TODO
+(define clock (- milliseconds (value-now milliseconds)))
 (define scheme-to-frtime-evt (event-receiver))
 
 (define (let-midi-flow)

@@ -1,3 +1,4 @@
+
 #lang FrTime
 (require "./Performer-Interface.rkt")
 
@@ -20,8 +21,8 @@ This is the function that saves rhythm values and weights more heavily the most 
           [else music-b])))
 
 (define (has-notes? lst)
-  (let ([note-lst (make-note-and-rest-lst lst)])
-    (has-notes?_ note-lst)))
+  ;(let ([note-lst (make-note-and-rest-lst lst)])
+    (has-notes?_ lst))
 
 (define (has-notes?_ note-lst)
   (if (empty? note-lst)
@@ -50,23 +51,42 @@ This is the function that saves rhythm values and weights more heavily the most 
 
 #|Just grab each rhythm value and update our structure|#
 (define (update-rhythms music)
-  (map (lambda (x) (set-box! rhythms (make-new-list (unbox rhythms) (get-rhythm x)))) (make-note-and-rest-lst music)))
+  (let* ([lst (map (lambda (x) (make-new-list '() (get-rhythm x))) (make-note-and-rest-lst music))]
+         [result (add-two-lists (unbox rhythms) lst)])
+    ;(printf "result ~a~n" result)
+    ;(if (list? result)
+        (set-box! rhythms result)))
+     ;   (set-box! rhythms (list result)))))
+
+(define (add-two-lists l lst)
+  (if (empty? lst)
+      (if (pair? (first l))
+          l
+          (list l))
+      (if (equal? 1 (car (first lst)))
+          (add-two-lists (make-new-list l (cdr (first lst))) (rest lst))
+          (add-two-lists (make-new-list l (cdr (first lst))) (cons (cons (- (car (first lst)) 1) (cdr (first lst))) (rest lst))))))
 
 (define (make-note-and-rest-lst music)
   (if (empty? music)
       '()
-      (cond [((equal? ':=: (first music))
-              (equal? ':+: (first music))) (make-note-and-rest-lst (rest music))]
+      (cond [(or (equal? ':=: (first music))
+                 (equal? ':+: (first music))) (make-note-and-rest-lst (rest music))]
+            [(or (equal? 'rest (first music))
+                 (equal? 'note (first music)))
+             (list music)]
             [(list? (first music))
              (cond [(or (equal? 'rest (first (first music)))
                         (equal? 'note (first (first music)))) (cons (first music) (make-note-and-rest-lst (rest music)))]
                    [else (append (make-note-and-rest-lst (first music)) (make-note-and-rest-lst (rest music)))])]
-            [else 'unsupported])))
+            [else (begin
+                    (printf "~a~n" music)
+                    (raise 'unsupported))])))
 
 (define (make-new-list lst rhythm-value)
   (if (empty? lst)
       (cons 1 rhythm-value)
-      (cond [(equal? rhythm-value (cdr (first lst))) (cons (cons (+ 1 (car (first lst))) (cdr (first lst))) (rest lst))]
+      (cond [(equal? rhythm-value (cdr (first lst))) (cons (cons (+ 1 (car (first lst))) rhythm-value) (rest lst))]
             [else (cons (first lst) (make-new-list (rest lst) rhythm-value))])))
 
 (define (get-rhythm music)
@@ -84,8 +104,9 @@ This is the function that saves rhythm values and weights more heavily the most 
 (define (music-value-function . lst)
   (let ([new-musical-fragment-to-play (new-func_ lst)])
     (begin
+      (printf "playing ~a~n" new-musical-fragment-to-play)
       (update-rhythms new-musical-fragment-to-play)
-      new-musical-fragment-to-play)))
+      (thread (lambda () (skore:play-music new-musical-fragment-to-play))))))
 #|**********************|#
 
 (provide perform
