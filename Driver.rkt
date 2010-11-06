@@ -2,8 +2,8 @@
 (require "Parser/Parser.rkt"
          "HardwareLink/Connect.rkt"
          "Analyser/Analyser.rkt"
-         "Performer/Performer.rkt"
-;         "Performer/Performer2.rkt"
+;         "Performer/Performer.rkt"
+         "Performer/Performer2.rkt"
 ;         "Performer/Performer3.rkt"
          "Lib/utility.rkt"
          "Lib/box-requires.rkt"
@@ -13,6 +13,11 @@
 #|
 
 TODO:
+
+remove 'NC's if i can
+
+write performer A and B
+
 see if performer2/3 is getting any upcoming changes.
 |#
 
@@ -40,10 +45,13 @@ see if performer2/3 is getting any upcoming changes.
 (map-e 
  (lambda (pkt) 
    (begin
+     #;(parse pkt (unbox tempo))
      (set-box! analysed-piece (analyse (parse pkt (unbox tempo)) (unbox analysed-piece)))
+     #;(printf "~a~n" (piece-changes (unbox analysed-piece)))
      (let ([music (perform (unbox analysed-piece))])
-       (cond [(not (empty? music)) (update-music-signal (piece-key-signature (unbox analysed-piece)) music (modulo (length (piece-changes (unbox analysed-piece))) (length music)))])
-       #;(update-music-signal `(C) music 1))
+         (begin
+           #;(printf "upcoming ~a~n" music)
+           (cond [(not (empty? music)) (update-music-signal (piece-key-signature (unbox analysed-piece)) music (modulo (length (piece-changes (unbox analysed-piece))) (length music)))])))
      )
    )
  scheme-to-frtime-evt)

@@ -18,7 +18,7 @@ Jazz for the color notes.
 (define (analyse-piece music-lst time-signature piece)
   (let* ([key (find-key-signature music-lst (piece-key-signature piece) time-signature)]
          [chords (find-chord-progression music-lst key time-signature)])
-    (make-piece key time-signature (append (piece-changes piece) chords))))
+    (make-piece key time-signature chords)))
 
 (define (find-chord-progression music key time-signature)
   (let ([chords (find-chords music time-signature)])

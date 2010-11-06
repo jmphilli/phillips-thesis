@@ -28,9 +28,10 @@ repeats so that going up or down is evenly weighted again.
 ; get distance from note for each passage. the smallest distance which is in the correct direction wins
 (define (has-notes? lst)
   (let ([note-lst (get-notes lst)])
-    (has-notes?_ note-lst)))
+    (not (empty? note-lst))
+    #;(has-notes?_ note-lst)))
 
-(define (has-notes?_ note-lst)
+#;(define (has-notes?_ note-lst)
   (if (empty? note-lst)
       #f
       (or (equal? 'note (first note-lst)) (has-notes?_ (rest note-lst)))))
@@ -55,7 +56,7 @@ repeats so that going up or down is evenly weighted again.
 ;the passage's direction is defined as the most extreme note-number.
 (define (get-distance-from-note-number note-num music)
   (let ([lst (convert-music-to-note-numbers music)])
-    (if (empty? lst)
+    (if (or (empty? lst) (equal? music '(rest 1)))
         1000
         (get-distance-recur note-num lst))))
 
@@ -98,10 +99,11 @@ repeats so that going up or down is evenly weighted again.
 
 #| Interface stuff |#
 (define (music-value-function . lst)
-  (let ([val (choose-passage lst)])
+  (let ([val (choose-passage (first lst))])
     (begin
       (increment-count)
       (reset-note-number val)
+      (printf "playing ~a~n" val)
       (thread (lambda () (skore:play-music val))))))
 
 #|*****************|#

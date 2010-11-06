@@ -32,21 +32,6 @@ Jazz for the color notes.
       (let ([chord (read-chord (read-beat music time-signature) time-signature)])
         (cons chord (find-chords (read-past-beat music time-signature) time-signature)))))
 
-;(define (read-past-measure-fix-this music)
-;  (letrec ([func (lambda (dur) (let ([music-minus-duration (parse-past-music-duration music dur)])
-;                                 (if (equal? (length music) (length music-minus-duration))
-;                                     (func (+ 1 dur))
-;                                     music-minus-duration)))])
-;    (func 1)))
-
-;kinda feel like i can use the previous function and include a continuation k to get all the functionality in one piece of code, this works though i guess...
-;(define (how-much-to-read-past-measure? music)
-;  (letrec ([func (lambda (dur) (let ([music-minus-duration (parse-past-music-duration music dur)])
-;                                 (if (equal? (length music) (length music-minus-duration))
-;                                     (func (+ 1 dur))
-;                                     dur)))])
-;    (func 1)))
-
 ;given a measure of music. is it a chord? 
 (define (read-chord note-lst time-signature)
   (match note-lst

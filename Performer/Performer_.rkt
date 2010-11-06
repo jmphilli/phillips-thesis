@@ -20,7 +20,9 @@
 
 (define (perform piece)
   (let ([upcoming-form (find-patterns (piece-changes piece))])
-    upcoming-form))
+    (begin
+      #;(printf "saved-piece-pats ~a~n" (saved-piece-patterns already-seen))
+      upcoming-form)))
 
 (define (make-music keys changes length-of-performance)
   (cond [(cadential? keys changes)
@@ -323,7 +325,7 @@
           #f)))
 
 (define (non-chord? lst)
-  (equal? #f (regexp-match #px".*N+.*" lst)))
+  (not (equal? #f (regexp-match #px".*N+.*" lst))))
 
 (define (remove-non-chords pats)
   (if (not (empty? pats))

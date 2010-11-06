@@ -9,16 +9,14 @@
 (define midi-lst (box '()))
 (define music-lst (box '()))
 (define starting-time (box 0))
-#;(define absolute-start (box (expt 10 6)))
 
 (define (reset)
   (begin
     (set-box! midi-lst '())
     (set-box! music-lst '())
-    (set-box! starting-time 0)
-    #;(set-box! absolute-start (expt 10 6))))
+    (set-box! starting-time 0)))
 
-;HardwareLink/Connect.ss provides a function read-midi-packet which returns the 'delta-time' (although i feel its been bastardized...) and the midi data
+;HardwareLink/Connect.ss provides a function read-midi-packet which returns the 'delta-time' (via smpte adjustments...) and the midi data
 ; ((delta-time-value midi-data-length (midi-command-and-channel note-value velocity)) ...) although i've never seen a list longer than length 1
 ;parse - returns a 'piece' of music if it can. a list of midi data is turned into haskore // skore and an 'unmatched' list. 
 
@@ -219,11 +217,13 @@
   (let ([midi-data (third data)])
     (cond [(midi-command-equal? midi-data midi-note-on-flag)
            (begin
-             (cond [(not (equal? .25 (quantize (get-delta-time data)))) (set-box! starting-time (+ (unbox starting-time) (quantize (get-delta-time data))))])
+             (cond [(not (equal? .25 (quantize (get-delta-time data)))) 
+                    (set-box! starting-time (+ (unbox starting-time) (quantize (get-delta-time data))))])
              (list (unbox starting-time) (get-delta-time data) (skore:make-midi-note-on (get-channel midi-data) (get-pitch midi-data) (get-velocity midi-data))))]
           [(midi-command-equal? midi-data midi-note-off-flag)
            (begin
-             (cond [(not (equal? .25 (quantize (get-delta-time data)))) (set-box! starting-time (+ (unbox starting-time) (quantize (get-delta-time data))))])
+             (cond [(not (equal? .25 (quantize (get-delta-time data)))) 
+                    (set-box! starting-time (+ (unbox starting-time) (quantize (get-delta-time data))))])
              (list (unbox starting-time) (get-delta-time data) (skore:make-midi-note-off (get-channel midi-data) (get-pitch midi-data) (get-velocity midi-data))))])))
 
 (define (get-delta-time data)
@@ -291,6 +291,7 @@
          (begin
            (append piece new-chunk))]
         [else (begin
+                (printf "duration ~a ~a~n" duration new-start-time)
                 (append piece (append `((:+: ,(make-rest duration new-start-time tempo))) new-chunk)))]))
 
 (define (_sequential-innards note-lst new-chunk aggregate-time new-chunk-start-time tempo)
