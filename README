@@ -4,3 +4,13 @@ Use the linux directory for Linux.
 On linux you need jack installed.
 There is a README in that directory telling you how to set it up, but its
 pretty straightforward.
+
+You need some sort of midi device to send data. (It can be virtual or physical.) 
+(I have a simple example written for OS X)
+Start up your midi device.
+
+Open Driver.rkt and run (connect) and then (run tempo) with whatever tempo 
+you want to play at. Or simply run (j) for a tempo of 120.
+
+The performer that is included in the top of the file (1 2 or 3) relates
+to different algorithms for choosing the music to perform. 
