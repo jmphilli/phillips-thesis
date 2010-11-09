@@ -12,8 +12,11 @@ I will force every piece of music to be a measure long and start at the top of a
 (define music-signal (new-cell))
 (define (music-function a . tl) 'reset-this)
 
-(define delayed-computation-duration 10)
-(define time-for-one-beat 10)
+(define delayed-computation-duration 1)
+(define time-for-one-beat 1)
+
+;(define delayed-computation-duration (/ 1 100))
+;(define time-for-one-beat (/ 1 100))
 
 (define (init-performer func clk tmpo)
   (begin
@@ -29,12 +32,9 @@ I will force every piece of music to be a measure long and start at the top of a
 (define (add-music-to-queue time music)
   (cond [(not (empty? music))
          (begin
-           (add-to-signal time (get-music-for-duration music 1))
+           (add-to-signal time (get-music-for-duration music .5)) ;; TODO this .5 is equivalent to one second. 
+           (printf "time adding at ~a music ~a~n" time (get-music-for-duration music 1))
            (add-music-to-queue (+ time-for-one-beat time) (get-music-after-duration music 1)))]))
-
-#;(lambda ()
-  (map-e (lambda (x)
-           (skore:play-music (value-now music-signal))) (changes music-signal)))
 
 (provide perform
          update-music-signal

@@ -167,7 +167,7 @@ Jazz for the color notes.
       (music-in-key? music key MAJOR_LST)
       (music-in-key? music key MINOR_LST)))
 
-(define (music-in-key? music key interval-lst)
+#;(define (music-in-key? music key interval-lst)
   (cond 
     [(empty? music) #t]
     [(equal? 'rest (first music)) #t]

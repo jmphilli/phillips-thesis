@@ -363,6 +363,17 @@
     [(list ':=: _ ...) #t]
     ['removePlease #f]))
 
+(define (music-in-key? music key interval-lst)
+  (cond 
+    [(empty? music) #t]
+    [(equal? 'rest (first music)) #t]
+    [(equal? 'note (first music)) 
+     (let ([interval (get-tonal-distance key (first (second music)))])
+       (not (equal? #f (member interval interval-lst))))]
+    [(or (equal? ':+: (first music))
+         (equal? ':=: (first music)))
+     (andmap (lambda (x) (music-in-key? x key interval-lst)) (rest music))]))
+
 (provide get-musical-duration
          get-musical-duration_parallel
          get-musical-duration_sequenece
@@ -407,6 +418,7 @@
          box
          unbox
          set-box!
+         music-in-key?
          (struct-out skore:midi-note-on)
          (struct-out skore:midi-note-off))
 

@@ -23,7 +23,9 @@ see if performer2/3 is getting any upcoming changes.
 
 (define analysed-piece (box EMPTY_PIECE))
 (define tempo (box 'a))
-(define clock (- milliseconds (value-now milliseconds)))
+;(define clock (- milliseconds (value-now milliseconds)))
+(define clock (- seconds (value-now seconds)))
+;(define clock (- (/ milliseconds 100) (/ (value-now milliseconds) 100)))
 (define scheme-to-frtime-evt (event-receiver))
 
 (define (let-midi-flow)
@@ -45,12 +47,10 @@ see if performer2/3 is getting any upcoming changes.
 (map-e 
  (lambda (pkt) 
    (begin
-     #;(parse pkt (unbox tempo))
      (set-box! analysed-piece (analyse (parse pkt (unbox tempo)) (unbox analysed-piece)))
-     #;(printf "~a~n" (piece-changes (unbox analysed-piece)))
      (let ([music (perform (unbox analysed-piece))])
          (begin
-           #;(printf "upcoming ~a~n" music)
+           ;(printf "upcoming ~a~n" music)
            (cond [(not (empty? music)) (update-music-signal (piece-key-signature (unbox analysed-piece)) music (modulo (length (piece-changes (unbox analysed-piece))) (length music)))])))
      )
    )

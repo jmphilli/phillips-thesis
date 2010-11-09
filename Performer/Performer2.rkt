@@ -53,14 +53,12 @@ This is the function that saves rhythm values and weights more heavily the most 
 
 #|Just grab each rhythm value and update our structure|#
 (define (update-rhythms music)
-  (begin
-    (printf "lst ~a rhythms ~a ~N" (map (lambda (x) (make-new-list '() (get-rhythm x))) (make-note-and-rest-lst music)) (unbox rhythms))
-    (let* ([lst (first (map (lambda (x) (make-new-list '() (get-rhythm x))) (make-note-and-rest-lst music)))]
+  (let* ([lst (first (map (lambda (x) (make-new-list '() (get-rhythm x))) (make-note-and-rest-lst music)))]
          [result (add-two-lists (unbox rhythms) lst)])
     ;(printf "result ~a~n" result)
     ;(if (list? result)
-        (set-box! rhythms result))))
-     ;   (set-box! rhythms (list result)))))
+    (set-box! rhythms result)))
+;   (set-box! rhythms (list result)))))
 
 (define (add-two-lists l lst)
   (if (empty? lst)

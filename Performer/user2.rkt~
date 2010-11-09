@@ -1,0 +1,3 @@
+#lang racket
+;scalar motion. moving up or down randomly in the possible key signatures.
+;every note is 1/8 duration

@@ -210,32 +210,47 @@
 (define (major-key-symbol? sym)
   (char-upper-case? (string-ref (symbol->string sym) 0)))
 
+
+
 (define (get-music-for-duration music duration)
   (parse-music-duration music duration))
 (define (get-music-after-duration music duration)
   (parse-past-music-duration music duration))
+
+;;(:+: (note (B 7) 4.0) (:+: (rest 0.125)) (note (B 7) 4))
+
+;((note (B 7) 4))
 ;this gets called somewhere and breaks
 (define (parse-music-duration music duration)
-  (match (first music)
-    [':+: (cons (first music) (parse-music-duration-sequence (rest music) duration))]
-    [':=: (cons (first music) (parse-music-duration-parallel (rest music) duration))]
-    [_ (parse-music-duration (first music) duration)]))
+  (if (empty? music)
+      '()
+      (match (first music)
+        [':+: (let ([val (parse-music-duration-sequence (rest music) duration)])
+                (cond [(empty? val) val]
+                      [else (cons (first music) val)]))]
+        [':=: (let ([val (parse-music-duration-parallel (rest music) duration)])
+                (cond [(empty? val) val]
+                      [else (cons (first music) val)]))]
+        [else (begin
+                (printf "~a~n" music)
+                (error 'what-is-this))]
+        #;[_ (parse-music-duration (first music) duration)])))
 
 (define (parse-music-duration-sequence note-lst duration)
   (if (empty? note-lst)
       '()
       (match (first note-lst)
         [(list 'note (list a b) note-dur) (if (<= duration note-dur)
-                                              (list (first note-lst))
+                                              (list (first note-lst)) ;; or return '()
                                               (cons (first note-lst) (parse-music-duration-sequence (rest note-lst) (- duration note-dur))))]
         [(list 'rest rest-dur) (if (<= duration rest-dur)
-                                   (list (first note-lst))
+                                   (list (first note-lst)) ;; or return '()
                                    (cons (first note-lst) (parse-music-duration-sequence (rest note-lst) (- duration rest-dur))))]
         [':=: (list (cons ':=: (parse-music-duration-parallel (rest note-lst) duration)))]
         [':+: (list (cons ':+: (parse-music-duration-sequence (rest note-lst) duration)))]
         [_ (if (<= duration (get-musical-duration (first note-lst)))
-               (parse-music-duration-sequence (first note-lst) duration)
-               (append (parse-music-duration-sequence (first note-lst) duration) (parse-music-duration-sequence (rest note-lst) (- duration (get-musical-duration (first note-lst))))))])))
+               (list (parse-music-duration (first note-lst) duration))
+               (list (append (parse-music-duration (first note-lst) duration) (list (parse-music-duration (cons ':+: (rest note-lst)) (- duration (get-musical-duration (first note-lst))))))))])))
 
 (define (parse-music-duration-parallel note-lst duration)
   (map (lambda (x)
@@ -387,11 +402,15 @@
          skore:pitch-class->offset
          skore:offset->pitch-class
          skore:play-music
+         skore:pitch->pitch-num
          skore:rest
+         box
+         unbox
+         set-box!
          (struct-out skore:midi-note-on)
          (struct-out skore:midi-note-off))
 
-(define arp-test
+#|(define arp-test
   '(:+: 
     (note (C 3) 1/4) (note (E 3) 1/4) (note (G 3) 1/4) (note (E 3) 1/4)
     (note (F 3) 1/4) (note (A 3) 1/4) (note (C 3) 1/4) (note (A 3) 1/4)
@@ -411,11 +430,4 @@
     (note (C 3) 1/4) (note (E 3) 1/4) (note (G 3) 1/4) (note (E 3) 1/4)
     (note (F 3) 1/4) (note (A 3) 1/4) (note (C 3) 1/4) (note (A 3) 1/4)
     (note (G 3) 1/4) (note (B 3) 1/4) (note (D 3) 1/4) (note (B 3) 1/4)
-    (note (C 3) 1/4) (note (E 3) 1/4) (note (G 3) 1/4) (note (C 3) 1/4)))
-
-(define (looper music)
-  (if (empty? music)
-      1
-      (begin
-        (get-music-for-duration music 1)
-        (looper (get-music-after-duration music 1)))))
+    (note (C 3) 1/4) (note (E 3) 1/4) (note (G 3) 1/4) (note (C 3) 1/4)))|#
