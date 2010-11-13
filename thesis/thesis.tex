@@ -11,6 +11,7 @@
 
 \documentclass[12pt]{ucthesis}
 
+\usepackage{algorithm
 
 \usepackage{url}
 
@@ -101,7 +102,7 @@
 
 %The bibliography section is very easy to create.  When gathering references, I used the ACM digital library (http://portal.acm.org/portal.cfm) to grab the Bibtex entries.  Papers in the digital library have Bibtex entries ready to be copied and pasted into your bibliography.  Create a separate file called something like ``bibliography.bib'' and paste in your Bibtex entries.  LaTeX (and Bibtex) generate your bibliography section for you -- very easy! I can cite references very easily.  Here is a paper called \emph{Dual contouring of hermite data}~\cite{DualContouring}.  Here is a paper called \emph{Surface simplification using quadric error metrics}~\cite{QuadricErrorMetrics}.  I've also cited software located at some websites \cite{NormalMapper}~\cite{nVidiaMelody}.
 
-This thesis describes an event driven, reactive musical performer. It takes a different approach to the problem of creating melodic improvisation.~\cite{bob} In solving this problem in the FrTime language, a signal handler was developed to maintain the possible values in the future and perform a computation over these values to decide which value should be the correct answer at the time that it is needed. At the end of the document an experiment is performed with three different performers in hopes of discovering the 'best' improviser. The framework created is extensible and uses a Haskore like syntax for describing music. New performers and improvisers can be created without any substantial change to the framework. This framework was written for the DrRacket environment and provides a MIDI extension for use with DrRacket on Mac OS X and Linux. 
+This thesis describes an event driven, reactive musical performer. It takes a different approach to the problem of creating melodic improvisation.~\cite{bob} In solving this problem in the FrTime language, a demand driven module or signal handler was developed to maintain the possible values in the future and perform a computation over these values to decide which value should be the correct answer at the time that it is needed. At the end of the document an experiment is performed with three different performers in hopes of discovering the 'best' improviser. The framework created is extensible and uses a Haskore like syntax for describing music. New performers and improvisers can be created without any substantial change to the framework. This framework was written for the DrRacket environment and provides a MIDI extension for use with DrRacket on Mac OS X and Linux. 
 
 \end{abstract}
 
@@ -142,7 +143,7 @@ This thesis describes an event driven, reactive musical performer. It takes a di
 
 Musicians need accompaniment and sometimes it is challenging to find fellow musicians to play with. This thesis addresses this issue by providing a programmable computer performer that plays music with a human performer who is performing on a MIDI instrument connected to the computer. The implementation takes advantage of the reactive programming by creating an event driven performer that reacts to each input received from the MIDI instrument. The goal is to create a framework that handles all of the parts of performing music that are not unique to a performer and allow developers to create many performers. 
 
-At the same time, this thesis addresses the issue of providing the highest payoff or reward at every point in time via a reactive behavior. A module is developed that controls a user created behavior which is associated with a user provided maximum value function. The behavior's value is then set to values that the user has added and have been processed by the value function. This interface is used to provide the most musically pleasing output but has further implications into other domains. 
+In addition to this a very simple demand driven module or signal handler ~\ref{signal-handler} in introduced. This thesis addresses the issue of providing the highest payoff or reward at every point in time via a reactive, push based behavior. A module is developed that controls a user created behavior which is associated with a user provided maximum or minimum value function. The behavior's value is then set to values that the user has added and have been processed by the value function. This interface is used to provide the most musically pleasing output but has further implications into other domains. 
 
 The next chapter addresses work, both in the field of computers and music, and in the functional reactive domain. A short crash course in music theory is provided as well. Following that is a description of the implementation and problems that arose and how they were solved. The fourth section describes an experiment in programming different performers followed by a section describing the results of these experiments. Future work is discussed and followed by a conclusion.
 
@@ -210,11 +211,15 @@ There is a very good overview of what current problems are in computer music and
 \section{Functional Reactive Programming}
 \label{rw:frp}
 
-Functional Reactive Programming, or FRP, is a programming paradigm that incorporates reactive elements in a functional language. [todo describe what a functional language is, reactive language] The languages used for this system are FrTime (pronounced 'Father Time')[citation] and Racket. 
+Functional Reactive Programming, or FRP, is a programming paradigm that incorporates reactive elements in a functional language. [todo describe what a functional language is, reactive language] The languages used for this system are FrTime (pronounced 'Father Time') and Racket~\cite{FrTime}.
 
-FrTime is a functional reactive language written in Racket. [talk about FRan or whatever that graphics thing was.. grab some good frp research]
+A lot of work has been done in formalizing reactive programming to ensure timely results~\cite{EventDriven}\cite{RealTime}. These works were driven by a desire to use a functional reactive language in robotics applications. The results of this work was formalized semantics to ensure realtime results. The work described in this paper does not expand upon these works, but relies heavily on its basis and promises. The performer must react in realtime to events that are triggered just like a robot must react to external stimulus in realtime or else it will fall off a cliff. Luckily, preventing a robot from falling off a cliff is a lot like preventing a musician from playing a bad melodic phrase. This framework would not exist without this work. Also, as a slight aside, there is a comparison of real time MIDI performance across different commercially available operating systems not using any reactive languages, but instead trying to compare the performance of each operating system independent of other considerations~\cite{real-time-midi}.
 
-A lot of work has been done in formalizing reactive programming to ensure timely results~\cite{EventDriven}\cite{RealTime}. These works were driven by a desire to use a functional reactive language in robotics applications. The results of this work was a formalized method to ensure realtime results. The work described in this paper does not expand upon these works, but relies heavily on its basis and promises. The performer must react in realtime to events that are triggered just like a robot must react to external stimulus in realtime or else it will fall off a cliff. Luckily, preventing a robot from falling off a cliff is a lot like preventing a musician from playing a bad melodic phrase. This framework would not exist without this work.
+The work most closely related to this work develops a push-pull semantic functional reactive language~\cite{push-pull-frp}. This work expands and uses the work done much earlier in creating improving values to guarantee termination~\cite{historic-paper}. The work done by Burton defines a semantic for processing over non flat, or infinite domains. This work is later incorporated in the work done by Elliott in optimizing a functional reactive language's semantics for efficiency. Elliott's work decomposes reactive behaviors into two classes. The class of discrete reactions, and the class of continuous time functions. Different semantics are developed for the two different cases. The discrete reactions values change with a push based semantic and the pull based semantic is used for the continuous time functions. This work dives deeply into what is only grazed in the work done here. A signal handler module, which is later developed and described in chapter~\ref{Implementation}, shares some simplified ideas with what takes place in these two previous works. 
+
+These works also introduce the ideas of time, value pairs referred to as 'futures' in the push-pull work. Futures are values that are not known yet but can be considered in the push-pull work~\cite{push-pull-frp}. A list of futures is called a progress report and can be processed to remove some potential futures, shortening the list. The work done here, with the signal handler is related to both the idea of futures and progress reports. 
+
+%THE BIGGEST TODO :: IF FRTIME IS PUSHBASED, THEN I'VE ADDED A LITTLE BIT OF PULL...
 
 \chapter{Implementation}
 \label{Implementation}
@@ -239,6 +244,32 @@ The whole system works together with FrTimes event handling infrastructure. A sy
 
 A problem arises at this point in the implementation. Since the FrTime event receiver will trigger the execution of the performer with every MIDI message it receives the system will create too much music. If the performer correctly predicts the upcoming chord progression for the next three chords it will also predict the correct chord progression when there are only two upcoming chords to predict and also one. In this way the performer will perform the same measure of music as many as three times (the last measure to predict). The other case that is of our concern is when the performer incorrectly predicts the upcoming chord changes. In this case, the performer could be playing music that doesn't adhere to the musical structure and will be distracting for the user and any listeners. Both of these issues reduce to the same problem. The system has many values to choose from at any point in the future and it must decide which value will be the 'best' at or before that time.
 
+\begin{algorithm}                      % enter the algorithm environment
+\caption{Calculate $y = x^n$}          % give the algorithm a caption
+\label{alg1}                           % and a label for \ref{} commands later in the document
+\begin{algorithmic}                    % enter the algorithmic environment
+\REQUIRE $n \geq 0 \vee x \neq 0$
+\ENSURE $y = x^n$
+\STATE $y \Leftarrow 1$
+\IF{$n < 0$}
+\STATE $X \Leftarrow 1 / x$
+\STATE $N \Leftarrow -n$
+\ELSE
+\STATE $X \Leftarrow x$
+\STATE $N \Leftarrow n$
+\ENDIF
+\WHILE{$N \neq 0$}
+\IF{$N$ is even}
+\STATE $X \Leftarrow X \times X$
+\STATE $N \Leftarrow N / 2$
+\ELSE[$N$ is odd]
+\STATE $y \Leftarrow y \times X$
+\STATE $N \Leftarrow N - 1$
+\ENDIF
+\ENDWHILE
+\end{algorithmic}
+\end{algorithm}
+
 \section{Signal Handler}
 \label {signal-handler}
 To accommodate the problem of many values to choose from at each distinct point in time a signal handling module was developed. The problem can most simply be described as having many values for each distinct point in time, but only needing one. 
@@ -248,6 +279,16 @@ This signal handler requires a clock, an evaluation function that takes any numb
 In a simple example the value function would be the mathematical function `max.' This function always returns the largest of the values that were passed to it. So if the user of the signal handler called `add-to-signal' with the value 10 at time 1, and the value 3 at time 1, and the value 2 at time 1, then when the clock ticked to 1 the value of the signal would be 10 and only 10 because that is what max would return. 
 
 For our use, the discrete values which need to be passed into the `add-to-signal' function should be small musical fragments. The value function should then choose between any possible musical fragments in the list of added values to choose the most musically appealing value.  With this tool the signal will only ever have one musical value at each discrete point in time. That value will then be performed and heard as the output of the system. 
+
+This signal handler adds a small amount of pull based or demand driven evaluation. The semantics of the underlying FrTime language have not changed, and as the FrTime language is built on an entirely push driven or data driven model the benefits are slight. The signal handler can be considered pull based because the signal's possible values are updated by any number of threads or streams of processing and the value for the signal is computed only at the points in time where it is called for. That is the signal does not waste computation pruning possible results for any distinct future value. Only when the clock has ticked to a new value is the function, whatever it may be, used on the possible values for the signal at that point in time. If the signal handler were not put in place then the values of the function would be computed at every point where a new value were added, adding overhead that is not necessary. This is similar to the work done by Elliott and Warren but implemented over a very strict subset of what they accomplished. This signal handler could not handle the case where the list of possible values were non terminating unless the function provided to compute over the list were able to handle that case. That being said, the functions that are used in the semantics of the work that Elliott and Warren did were limited to a speculative maximum and a minimum function. This signal handler could perform any function over the data. 
+
+%TODO :: write up a small semantic extension that the signal handler provides. essentially nothing is computed until the clock ticks. whatever the func is gets applied to all of the values that are possible at the point that the clock just finished tickcing to.
+
+Extending the idea of a hybridized demand driven and data driven computation model is traditionally used with the demand driven functionality being used for the continuous case and the data driven being used for the discrete case~\cite{push-pull-frp}. The way that the demand driven model is used in this system is antithetical to that work. The real gains in efficiency from changing to a hybridized push-pull model are compared to a completely pull driven model. The efficiency of a push only model should be equal, if not a little more efficient, compared to a hybridized push-pull model but they haven't been explicitly compared.  
+
+This signal handler is weak as a demand driven or pull based model because it lacks continuity. While it does explicitly pull and update a value it does so only when there are values to be processed. The base value is used whenever there are no values to process because the queue has been left empty for distinct discrete point in time. This ends up being a strength in this application because the framework sometimes has no idea what notes to perform. With the base value set as a rest it is able to be quiet while it processes. If it were continuously evaluating new values then there would be overhead reintroducing the base value at any time the framework was confused. 
+%The work from  and  are most relevant to the work done here. My stuff is a flat domain. Not infinite. Pull and push based. Pushes data the whole time, but doesn't recompute the answer everytime. That would be inefficient. Pulls the answer only when it needs it, right before it plays. Restricted polling. Only polls once, guaranteed. It is demand driven. I don't think that this would work with infinite domains, unless your value function worked with infinite domains... what if i don't want to use min and max as the values for improving future values. what if an improving future value by my definition is the letter a instead of the number 4?  TODO :: real time dataflow using precomputed values being processed over to find an optimal solution. clock ticks can be anything
+
 
 \chapter{Experiment}
 \label {experiment}
@@ -318,16 +359,20 @@ The chordal analysis could be upgraded to include chords that don't function wit
 
 The simple solution that was used to handle all of these issues was to neglect any of the logic needed to correctly interpret and analyse the music and instead only remember the last ten patterns that have been seen. In this way, if a piece modulates the performer is 'confused' for a moment and then with the new patterns it has accumulated, begins playing anew, in the new key signature. 
 
+The signal handler worked very well in solving implementation problems due to the reactivity in FrTime. Only one phrase would be performed instead of every phrase thanks to the value function.
+
 \chapter{Future Work}
 \label{future}
 
-The future work will take two directions. Firstly, the analysis of the music being performed by the human performer can be improved with some better logic from previous work done in melodic improvisation and recognition~\cite{MelodicImprovisation}~\cite{MelodicRecognition}. By recognizing melodies that the human performer plays, and relating them to specific chord changes, the performer could harmonize with the human performer by predicting that the melody will return the next time that the chord progression comes around. This would also allow for some improved improvisation by manipulating melodies with transposition, retrograde, inversion and combinations of these manipulations. The static implementation of what is or is not harmonic to a key signature should be loosened up to provide chromatic notes and more color tones. This would require some overhauling of how key signature is discovered. 
+The future work will take a few directions. Probably the most interesting and important work to be done would be to introduce the hybrid push-pull model into the FrTime language. This would complicate much of the logic and the semantics would have to be reconsidered just as it was done with the work done by Elliott~\cite{push-pull-frp}. The main point of interest here would be to compare the two models and see whether the efficiency changed drastically for particular problem sets. 
+
+Secondly, the analysis of the music being performed by the human performer can be improved with some better logic from previous work done in melodic improvisation and recognition~\cite{MelodicImprovisation}~\cite{MelodicRecognition}. By recognizing melodies that the human performer plays, and relating them to specific chord changes, the performer could harmonize with the human performer by predicting that the melody will return the next time that the chord progression comes around. This would also allow for some improved improvisation by manipulating melodies with transposition, retrograde, inversion and combinations of these manipulations. The static implementation of what is or is not harmonic to a key signature should be loosened up to provide chromatic notes and more color tones. This would require some overhauling of how key signature is discovered. 
 
 With the pattern matching issues, a modified join function could be used to help put smaller patterns together and make larger ones~\cite{slidingWindow}. This work would have to be modified, but an asynchronous joining behavior could run trying to put smaller patterns together to make larger ones which could then be permanently saved. This would solve more than one problem described in the results. Firstly, by adding these larger form fragments the confusion of when thematic or original material returned after a period of time where the piece was developing new material would be remedied. The performer would know to look for larger forms if no small patterns matched. The behavior could also be triggered anytime the pattern list reached its full size. 
 
 The music value functions could be improved with more complex models. For example, the rhythmically minded performer could pick passages that leave a distribution that approximates a normal curve. 
 
-Secondly, the system itself can be improved to take advantage of other technologies that already exist. Multiple human performers accompanied by the system. Multiple computer performers each playing with a different voice (saxophone, clarinet, etc.) The biggest roadblock to this work is finding an interface that can handle all of the MIDI traffic. Rewriting the system to have more than one performer would not require much more work, a controller module could handle this. 
+Thirdly, the system itself can be improved to take advantage of other technologies that already exist. Multiple human performers accompanied by the system. Multiple computer performers each playing with a different voice (saxophone, clarinet, etc.) The biggest roadblock to this work is finding an interface that can handle all of the MIDI traffic. Rewriting the system to have more than one performer would not require much more work, a controller module could handle this. 
 
 The most pressing issue, and probably the most interesting is to make this framework so easy to use that non programmers could program performers. This can be accomplished by using a very small, domain specific language that musicians would understand given that they know some music theory. The musical value functions require a higher level language, but with a few preprogrammed into this system already users could simply select different functions and decide which is best for the performer that they are writing. 
 
@@ -337,6 +382,8 @@ The signal handler could also be used in many other domain specific applications
 
 \chapter{Conclusion}
 \label{conclusion}
+
+This work has contributed a framework for writing personalized music improvisers that will react with the help of a functional reactive programming language, FrTime. A comparison of music value functions and performers is used to test the validity of the framework. Future work will be directed in improving the functionality of the system with more information about the music that was played and a domain specific language written at a high enough level for non programmers to be able to write new, unique performers.
 
 
 % ------------- End main chapters ----------------------
