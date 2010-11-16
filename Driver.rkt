@@ -3,8 +3,8 @@
          "HardwareLink/Connect.rkt"
          "Analyser/Analyser.rkt"
 ;         "Performer/Performer.rkt"
-         "Performer/Performer2.rkt"
-;         "Performer/Performer3.rkt"
+ ;        "Performer/Performer2.rkt"
+         "Performer/Performer3.rkt"
          "Lib/utility.rkt"
          "Lib/box-requires.rkt"
          "Lib/racket-requires.rkt"
@@ -16,9 +16,10 @@ TODO:
 
 remove 'NC's if i can
 
-write performer A and B
+I think that the modulo call below is unneccessary, should just be length of music i think... 
 
-see if performer2/3 is getting any upcoming changes.
+try '3:4
+
 |#
 
 (define analysed-piece (box EMPTY_PIECE))
@@ -37,12 +38,12 @@ see if performer2/3 is getting any upcoming changes.
 
 (define (run tempo_) 
   (set-box! tempo tempo_)
-  (init-performer music-value-function clock tempo)
+  (init-performer music-value-function clock (unbox tempo))
   (let-midi-flow))
 
-(define (j) (begin
+(define (j t) (begin
               (connect)
-              (run 120)))
+              (run t)))
 
 (map-e 
  (lambda (pkt) 

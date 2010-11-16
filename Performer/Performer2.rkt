@@ -106,7 +106,7 @@ This is the function that saves rhythm values and weights more heavily the most 
 (define (music-value-function . lst)
   (let ([new-musical-fragment-to-play (new-func_ (first (first lst)))])
     (begin
-      (printf "playing ~a~n" new-musical-fragment-to-play)
+      ;(printf "playing ~a~n" new-musical-fragment-to-play)
       (update-rhythms new-musical-fragment-to-play)
       (thread (lambda () (skore:play-music new-musical-fragment-to-play))))))
 #|**********************|#

@@ -419,6 +419,7 @@
          unbox
          set-box!
          music-in-key?
+         skore:set-tempo-and-whole-note-len
          (struct-out skore:midi-note-on)
          (struct-out skore:midi-note-off))
 
