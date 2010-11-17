@@ -51,8 +51,7 @@ Write a function that decides which of the musics is more musical at any given t
              (if (empty? current-vals)
                  (set-cell! my-sig base-value)
                  (set-cell! my-sig (my-func current-vals)))
-             (clean-out-queue))
-             #;(set-cell! my-sig (foldr my-func base-value (find-all-values-at-time x (unbox q))))) (changes clock)))
+             (clean-out-queue))) (changes clock)))
 
 (define (clean-out-queue)
   (set-box! q (clean-out-queue_ (unbox q))))

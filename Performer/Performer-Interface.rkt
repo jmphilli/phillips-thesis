@@ -13,7 +13,8 @@ I will force every piece of music to be a measure long and start at the top of a
 (define (music-function a . tl) 'reset-this)
 
 (define delayed-computation-duration 1)
-(define time-for-one-beat 'a)
+(define time-signature-denom 4)
+;(define time-for-one-beat 'a)
 
 ;(define delayed-computation-duration (/ 1 100))
 ;(define time-for-one-beat (/ 1 100))
@@ -23,20 +24,21 @@ I will force every piece of music to be a measure long and start at the top of a
     (set! clock clk)
     (set! tempo tmpo)
     (skore:set-tempo-and-whole-note-len tempo)
-    (set! time-for-one-beat (/ 60 tempo))
+    ;(set! time-for-one-beat (/ 60 tempo))
     (set! music-function func)
     (init-sig clock music-signal music-function `(rest 1))))
 
 (define (update-music-signal keys upcoming-changes length-of-performance)
-  (let ([music (make-music keys upcoming-changes length-of-performance)])
-    (add-music-to-queue (+ delayed-computation-duration (value-now clock)) music)))
+  (let* ([music (make-music keys upcoming-changes length-of-performance)]
+         [add-music (get-music-after-duration music (/ (/ tempo 60) time-signature-denom))])
+    (add-music-to-queue (+ 1 (value-now clock)) add-music)))
 
 (define (add-music-to-queue time music)
   (cond [(not (empty? music))
          (begin
-           (add-to-signal time (get-music-for-duration music (/ 60 tempo))) ;; TODO check that this 60/tempo is what i want... i want one measure in duration 
+           (add-to-signal time (get-music-for-duration music (/ (/ tempo 60) time-signature-denom))) ;; get one second of music. x bpm * 1/60 minpersec = y bps ... get that many beats
            ;(printf "time adding at ~a music ~a~n" time (get-music-for-duration music 1))
-           (add-music-to-queue (+ time-for-one-beat time) (get-music-after-duration music 1)))]))
+           (add-music-to-queue (+ 1 time) (get-music-after-duration music (/ (/ tempo 60) time-signature-denom))))]))
 
 (provide perform
          update-music-signal

@@ -103,7 +103,7 @@ repeats so that going up or down is evenly weighted again.
     (begin
       (increment-count)
       (reset-note-number val)
-      ;(printf "playing ~a~n" val)
+;      (printf "playing ~a~n" val)
       (thread (lambda () (skore:play-music val))))))
 
 #|*****************|#

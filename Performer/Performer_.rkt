@@ -1,7 +1,7 @@
 #lang Racket
 (require "../Lib/utility.rkt"
-         ;"user.rkt"
-         "user2.rkt"
+         "user.rkt"
+         ;"user2.rkt"
          )
 
 ;given a piece of music (from the analyser) 
