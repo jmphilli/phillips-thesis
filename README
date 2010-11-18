@@ -9,6 +9,8 @@ You need some sort of midi device to send data. (It can be virtual or physical.)
 (I have a simple example written for OS X)
 Start up your midi device.
 
+Install the `midi' directory to a library path for Racket (e.g. ~/Library/Racket/5.0.1/collects/midi)
+
 Open Driver.rkt and run (connect) and then (run tempo) with whatever tempo 
 you want to play at. Or simply run (j) for a tempo of 120.
 
