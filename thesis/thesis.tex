@@ -29,6 +29,9 @@
 
 \usepackage{amssymb}
 \usepackage{amsmath}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{verbatim}
 \usepackage[letterpaper]{geometry}
 \usepackage[overload]{textcase}
 
@@ -117,19 +120,39 @@ This thesis describes an event driven, reactive musical performer. It takes a di
 \chapter{Introduction}
 \label{intro}
 
-Musicians need accompaniment and sometimes it is challenging to find fellow musicians to play with. This thesis addresses this issue by providing a programmable computer performer that plays music with a human performer who is performing on a MIDI instrument connected to the computer. The implementation takes advantage of the reactive programming by creating an event driven performer that reacts to each input received from the MIDI instrument. The goal is to create a framework that handles all of the parts of performing music that are not unique to a performer, and to allow developers to create many performers. 
+Computer music has been evolving since the 1960's where it began with Max Matthews' MUSIC software. The introduction of MIDI in the 1980's standardized a representation of music for synthesizers and computers. Currently, musicians will perform onstage with a laptop running a descendant of MUSIC named Max after Max Matthews. Max allows users to manipulate the flow of music or sound on a screen just like a producer links in reverb units and compressors in a studio with patch cords. What Max doesn't do is provide accompaniment to performers on stage. Loop pedals can replay music that a human has performed, but music generation still lies with human performers. The problem of creating a computer performer has been addressed previously with a system called \em{Band-out-of-a-Box}\em~\cite{bob}. \em{Band-out-of-a-Box }\em uses learning to create computer performers which are modeled after performances that are provided to the system through sheet music. Unfortunately \em{Band-out-of-a-Box }\em computes offline creating performers after a piece has been performed. The work presented here tries to create performers online, or while the piece is being performed.
 
-In addition, a very simple demand driven module or signal handler is introduced in section ~\ref{signal-handler}. This thesis addresses the issue of providing the highest payoff or reward at every point in time via a reactive, pull based or demand driven behavior. A module is developed that controls a user created behavior which is associated with a user provided maximum or minimum value function. The behavior's value is then set to values that the user has added and have been processed by this value function. This interface is used to provide the most musically pleasing output but has further implications into other domains. 
+Functional Reactive programming is a programming paradigm that extends functional programming with the notion of signals. Signals are values that vary depending on some parameter, time being the classic example. Just as Max uses the flow of music to create and manipulate sound in realtime, signals can be used to manipulate data or functions in realtime. FrAN, a animation library for Haskell, is the first implementation of a functional reactive programming paradigm. FrAN is able to express complicated graphical animations with mathematical functions which define x and y coordinates of an image or graphic on screen. FrAN has since evolved into other libraries (see Reactive and FieldTrip) and Functional Reactive Programming, or FRP, has since evolved into its own programming paradigm, separate from the graphics domain. Different implementations of FRP use different methods to propagate changing signal values through the system. Most recently a push-pull hybrid method was developed in Haskell~\cite{push-pull-frp}. 
 
-The next chapter addresses work, both in the field of computers and music, and in the functional reactive domain. A short crash course in music theory is provided as well. Following that is a description of the implementation and problems that arose and how they were solved. The fourth section describes an experiment in programming different performers followed by a section describing the results of these experiments. Future work is discussed and followed by a conclusion.
+%Musicians need accompaniment and sometimes it is challenging to find fellow musicians to play with. This thesis addresses this issue by providing a programmable computer performer that plays music with a human performer who is performing on a MIDI instrument connected to the computer. The implementation takes advantage of the reactive programming by creating an event driven performer that reacts to each input received from the MIDI instrument. The goal is to create a framework that handles all of the parts of performing music that are not unique to a performer, and to allow developers to create many performers. 
 
-\chapter{Related Work}
-\label{rw}
+\begin{comment}
+\begin{algorithm}
+\begin{algorithmic}
+\STATE $b = 3$
+\STATE $c = 4$
+\STATE $a = b + c$\COMMENT{'a' will equal 7}
+\STATE $d = 0$
+\STATE $b = 4$\COMMENT{'a' will equal 8 and 'b' will equal 4}
+\caption[Reactive Programming Example]{Reactive Programming Example}
+\end{algorithmic}
+\end{algorithm}
+\begin{figure}
+\label{fig:reactive-algorithm}
+\caption[Reactive Programming Example]{Reactive Programming Example}
+\end{figure}
+\end{comment}
 
-The following section is organized as follows : a short introduction to western music theory, a description of Haskore, related works that deal with music, and finally the work done with Functional Reactive languages.
 
-\section{Music Theory}
-\label{rw:music-theory}
+%broad overview of architecture of the music system
+%In addition, a very simple demand driven module or signal handler is introduced in section ~\ref{signal-handler}. This thesis addresses the issue of providing the highest payoff or reward at every point in time via a reactive, pull based or demand driven behavior. A module is developed that controls a user created behavior which is associated with a user provided maximum or minimum value function. The behavior's value is then set to values that the user has added and have been processed by this value function. This interface is used to provide the most musically pleasing output but has further implications into other domains. 
+
+The system that we develop uses the language FrTime (pronounced "Father Time"), a Functional Reactive implementation built on top of the language Racket. A parser transforms MIDI signals into Haskore which is a way to represent music that was developed for Haskell~\cite{haskore}. The music is then analysed to find the key signature and chord changes. A user created performer creates music to be played over upcoming chord changes that the system predicts. Finally the system performs a musical phrase using a evaluation function to choose one out of the many possible phrases to perform that are created anytime a new note is played. 
+
+A short crash course in music theory is provided followed by related works, both in the field of computers and music, and in the functional reactive domain. Following that is a description of the implementation and problems that arose and how they were solved. The fifth section describes an experiment in programming different performers followed by a section describing the results of these experiments. Future work is discussed and followed by a conclusion.
+
+\chapter{Music Theory}
+\label{music-theory}
 
 Firstly, understanding music theory requires no ability to hear difference in pitch or rhythm. Specifically, this section discusses Western music theory at a very high level so that the reader can understand how the system works. 
 
@@ -147,20 +170,26 @@ Chords can be put together to make a chord progression. Chord progressions are s
 
 Most pieces of music do not strictly adhere to a key signature, using "borrowed" pitches from other key signatures to add color and character to the music. This, along with how the computer interprets pitch is discussed in section~\ref{Implementation}.
 
-\subsection{Example}
+\section{Example}
 
 Taking figure~\ref{fig:blues-example} as an example, the piece has a time signature of 4/4, which are those two numbers to the far left of the first line. That means that in every measure, visually depicted with vertical bars, there will be four quarter notes. A quarter note is a black note filled in with no dots or tails on its stem. This example consists of nothing but whole notes though. Whole notes look a little different than quarter notes. First, whole notes have no tails. As you can see in this example the notes appear to just be circles, no lines extend from the circles. Secondly, the circles are empty. Quarter notes are colored in, whole notes are empty. Quarter notes are played for a quarter of the duration of a whole note. So four quarter notes would have to be played to take up the time that one whole note does. By playing a whole note in each measure we adhere to the rule set by the piece of music that each measure should be four quarter notes in duration.
 
 The notes in the first measure are C, E, and G. As noted above the measure with a capital C, these notes imply that a C chord is being played at this time. Capital letters are used to say that the chord is a major chord. Lower case letter chords do the same for minor chords. Every chord in this piece of music is a major chord. This is actually a very common form or chord progression. It is known as the twelve bar blues. There are slight variations on this form but theoretically this is the form. 
 
 \begin{figure}
-\includegraphics[height=85mm]{blues-example.pdf}
+\includegraphics[height=50mm]{blues-example.pdf}
 \captionfonts
 \caption[Twelve Bar Blues Example]{Twelve Bar Blues Example}
 \label{fig:blues-example}
 \end{figure}
 
 A human performer can often play with other performers just by listening to the music and discovering the chord progression, time signature and key signature innately. Computer performers have many ways of discovering key signature, chord progression, and time signature. The way that music is described in this system is through a time-signature, key-signature, tempo and chord progression. With these data the performer can make a prediction about what chord will be next and perform some music.
+
+
+\chapter{Related Work}
+\label{r	w}
+
+The following section is organized as follows : a short description of Haskore, related works that deal with music, and finally the work done with Functional Reactive languages.
 
 \section{Haskore}
 \label{rw:haskore}

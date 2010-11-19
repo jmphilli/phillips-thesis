@@ -1,10 +1,13 @@
 #lang Racket
 (require "SchemeMidi.rkt" 
-         scheme/foreign)
+         scheme/foreign
+         racket/runtime-path)
 (unsafe!)
 
-#|For Mac OS X and Linux |#
-(define midi-scheme-lib (ffi-lib (build-path "/Users/justinphillips/Documents/School/Thesis/Music/src/HardwareLink/compiled/native/i386-macosx/3m/SchemeMidi_ss")))
+(define-runtime-path dylib-path "compiled/native/i386-macosx/3m/SchemeMidi_ss")
+ #|For Mac OS X and Linux |#
+(define midi-scheme-lib (ffi-lib (build-path dylib-path)))
+;(define midi-scheme-lib (ffi-lib (build-path "/Users/justinphillips/Documents/School/Thesis/Music/src/HardwareLink/compiled/native/i386-macosx/3m/SchemeMidi_ss")))
 
 (define connect_
   (get-ffi-obj 'connect midi-scheme-lib
