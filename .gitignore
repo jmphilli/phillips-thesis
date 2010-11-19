@@ -1,0 +1,6 @@
+#ignore ~ files (backups)
+*.ss~
+*.rkt~
+
+#ignore compiled directories
+compiled/
