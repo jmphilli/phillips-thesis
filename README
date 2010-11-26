@@ -11,8 +11,25 @@ Start up your midi device.
 
 Install the `midi' directory to a library path for Racket (e.g. ~/Library/Racket/5.0.1/collects/midi)
 
-Open Driver.rkt and run (connect) and then (run tempo) with whatever tempo 
-you want to play at. Or simply run (j) for a tempo of 120.
+Open Driver.rkt and run (run tempo) with whatever tempo 
+you want to play at.
 
 The performer that is included in the top of the file (1 2 or 3) relates
-to different algorithms for choosing the music to perform. 
+to different algorithms for choosing the music to perform.  (music value-functions)
+performer1 is the most recent, or top of the queue algorithm
+performer2 is the rhythmic performer, choosing music based on its rhythm values
+performer3 is the melodic performer, choosing music based on the pitch values.
+
+The performer that is included in the top of the Performer/Performer_.rkt file
+(user or user2) relates to the performer that generates the music for the 
+framework. user is the cadential performer. user2 is the scalar performer.
+
+Once you are connected and running you should be able to play music on your keyboard
+and start to hear the system react. It may take some vamping on chords to make
+sure everything is working. Start with something simple like a bpm of 120 and 
+C major for a second followed by G major for a second. That should start performing
+quite quickly (~5 seconds). Make sure your volume on your computer is up. 
+Once you are sure it is working, feel free to perform more complicated music,
+the one limitation being that if you go from C major to F# major, (perform in
+very distintly related keys...) it probably won't work. Just restart the system
+and that should clear everything out. 

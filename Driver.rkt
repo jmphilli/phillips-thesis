@@ -36,14 +36,14 @@ try '3:4
               (#f)
               (cond [(sync (midi-event-to-be-synced)) (send-scheme-event-to-frtime)])))))
 
-(define (run tempo_) 
+(define (run_ tempo_) 
   (set-box! tempo tempo_)
   (init-performer music-value-function clock (unbox tempo))
   (let-midi-flow))
 
-(define (j t) (begin
+(define (run t) (begin
               (connect)
-              (run t)))
+              (run_ t)))
 
 (map-e 
  (lambda (pkt) 
