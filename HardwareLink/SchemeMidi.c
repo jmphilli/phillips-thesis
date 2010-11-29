@@ -13,7 +13,9 @@ Queue* newQueue(){
   return q;
 }
 
-void freeQueue(){
+void freeQueue()
+XFORM_SKIP_PROC
+{
   free(q->pkts);
   free(q);
 }
@@ -73,6 +75,8 @@ Scheme_Object* scheme_initialize(Scheme_Env *env){
   mod_env = scheme_primitive_module(scheme_intern_symbol("SchemeMidi"), env);
   scheme_finish_primitive_module(mod_env);
 
+  savedSrc = NULL;
+
   return scheme_void;
 }
 
@@ -103,10 +107,16 @@ bool connect(){
   return pktlist;
 }*/
 
-Scheme_Object* scheme_reload(Scheme_Env *env){
-  freeAll();
-  MIDIEndpointDispose(*savedSrc);
-  freeQueue();
+Scheme_Object* scheme_reload(Scheme_Env *env)
+{
+  if(savedSrc != NULL){
+    MIDIEndpointDispose(*savedSrc);
+
+    freeAll();
+    freeQueue();
+
+    savedSrc = NULL;
+  }
   return scheme_initialize(env);
 }
 
@@ -114,7 +124,8 @@ Scheme_Object* scheme_module_name(){
   return scheme_intern_symbol("SchemeMidi");
 }
 
-void freeAll(){
+void freeAll()
+{
   int i;
   int qSize;
   MIDIPacket* pkt;
@@ -149,11 +160,12 @@ bool midiInit(){
     MIDIEndpointRef src;
     void *srcConnRefCon;
 
-    //todo fix this for multiple intsruments
-    *savedSrc = src;
-
     src = MIDIGetSource(iSrc);
     srcConnRefCon = src;
+
+    //todo fix this for multiple intsruments
+   *savedSrc = src;
+
     MIDIPortConnectSource(*inPort, src, srcConnRefCon);
   }
 
@@ -204,10 +216,11 @@ int readyProc(Scheme_Object* data){
   if(isEmpty()){
     return false;
   }
-
   return true;
 }
 
-void schemeFree(MIDIPacket* pkt){
+void schemeFree(MIDIPacket* pkt)
+XFORM_SKIP_PROC
+{
   free(pkt);
 }
