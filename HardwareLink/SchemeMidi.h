@@ -28,6 +28,7 @@ Scheme_Object* getQueueForWaiting();
 Queue* q;
 
 MIDIEndpointRef* savedSrc;
+MIDIPortRef* inPort;
 
 /*
 You should set up an evt through the C API using scheme_add_evt(),

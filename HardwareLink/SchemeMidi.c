@@ -107,10 +107,16 @@ bool connect(){
   return pktlist;
 }*/
 
+int disconnect()
+XFORM_SKIP_PROC
+{
+    MIDIPortDisconnectSource(*inPort, *savedSrc);
+}
+
 Scheme_Object* scheme_reload(Scheme_Env *env)
 {
   if(savedSrc != NULL){
-    MIDIEndpointDispose(*savedSrc);
+    disconnect();
 
     freeAll();
     freeQueue();
@@ -140,7 +146,6 @@ void freeAll()
 }
 
 bool midiInit(){
-  MIDIPortRef* inPort;
   MIDIClientRef* client;
 
   CFStringRef portName;
