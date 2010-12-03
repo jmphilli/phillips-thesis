@@ -291,7 +291,7 @@
          (begin
            (append piece new-chunk))]
         [else (begin
-                (printf "duration ~a ~a~n" duration new-start-time)
+                ;(printf "duration ~a ~a~n" duration new-start-time)
                 (append piece (append `((:+: ,(make-rest duration new-start-time tempo))) new-chunk)))]))
 
 (define (_sequential-innards note-lst new-chunk aggregate-time new-chunk-start-time tempo)
