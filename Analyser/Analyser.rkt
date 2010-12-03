@@ -22,7 +22,8 @@ Jazz for the color notes.
 
 (define (find-chord-progression music key time-signature)
   (let ([chords (find-chords music time-signature)])
-    (if (equal? 1 (length key))
+    chords
+    #;(if (equal? 1 (length key))
         (chords-to-degrees chords (first key))
         chords)))
 
