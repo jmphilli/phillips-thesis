@@ -1,7 +1,7 @@
 #lang Racket
 (require "../Lib/utility.rkt"
-         "user.rkt"
-         ;"user2.rkt"
+         ;"user.rkt"
+         "user2.rkt"
          )
 
 ;given a piece of music (from the analyser) 
@@ -243,12 +243,7 @@
 (define (find-all-patterns pat lst)
   (let ([new-pat (regexp-match #px"(.*)\\1" (convert-list-to-string lst))])
     (cond [(empty? new-pat) pat]
-          [else (append new-pat pat)]))
-  #;(if (empty? lst)
-      pat
-      (let ([new-pat (find-patterns_lst lst)]) ;(regexp-match #px"(.*)\\1" "aabbaabbaabbaab")
-        (cond [(empty? new-pat) (find-all-patterns pat (rest lst))]
-              [else (find-all-patterns (append (find-patterns_lst lst) pat) (rest lst))]))))
+          [else (append new-pat pat)])))
 
 ;given this list, anything that repeats? take first 2 chords. do they repeat? 
 (define (find-patterns_lst lst)

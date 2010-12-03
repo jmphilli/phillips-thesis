@@ -92,7 +92,7 @@
 
 (define (chord-to-degree chord key)
   (match chord
-    ['NC #f]
+    ['NC 'NC]
     [_ (if (not (seventh-chord? chord))
            (let ([interval (get-tonal-distance key chord)])
              (cond [(major-key-symbol? key)#|In a major key|# (cond [(major-key-symbol? chord) (match interval

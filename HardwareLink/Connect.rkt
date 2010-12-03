@@ -11,7 +11,11 @@
 
 (define connect_
   (get-ffi-obj 'connect midi-scheme-lib
-               (_fun -> _bool)))
+               (_fun -> _int)))
+
+(define disconnect
+  (get-ffi-obj 'disconnect midi-scheme-lib
+               (_fun -> _int)))
 
 (define isEmpty
   (get-ffi-obj 'isEmpty midi-scheme-lib
@@ -77,7 +81,7 @@
 (define midi-event-to-be-synced get-queue-for-waiting)
 
 (define (connect)
-  (if (connect_)
+  (if (< 0 (connect_))
       "Connected!"
       "Not Connected! Is a MIDI source connected to your computer? Email jjustinphillipss@gmail.com for assistance."))
 
@@ -100,7 +104,8 @@
 
 (provide connect
          midi-event-to-be-synced
-         read-midi-packet)
+         read-midi-packet
+         disconnect)
 
 #|
 My device uses SMPTE Time - 25 frames * 40 subframes. BPM from device is 120. Sends a MIDI clock signal 2 times every second.
